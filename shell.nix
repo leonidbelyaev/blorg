@@ -1,9 +1,14 @@
-{ pkgs ? import <nixpkgs> {} }:
-pkgs.mkShell {
-  nativeBuildInputs = with pkgs; [ rustc cargo gcc rustfmt clippy pkg-config openssl nodePackages.create-react-app nodejs yarn sqlite ];
-
-  # Certain Rust tools won't work without this
-  # This can also be fixed by using oxalica/rust-overlay and specifying the rust-src extension
-  # See https://discourse.nixos.org/t/rust-src-not-found-and-other-misadventures-of-developing-rust-on-nixos/11570/3?u=samuela. for more details.
-  RUST_SRC_PATH = "${pkgs.rust.packages.stable.rustPlatform.rustLibSrc}";
-}
+let
+  moz_overlay = import (builtins.fetchTarball https://github.com/mozilla/nixpkgs-mozilla/archive/master.tar.gz);
+  nixpkgs = import <nixpkgs> { overlays = [ moz_overlay ]; };
+in
+  with nixpkgs;
+  stdenv.mkDerivation {
+    name = "moz_overlay_shell";
+    buildInputs = [
+      # to use the latest nightly:
+      nixpkgs.latest.rustChannels.nightly.rust
+      nixpkgs.openssl
+      nixpkgs.sqlite
+    ];
+  }

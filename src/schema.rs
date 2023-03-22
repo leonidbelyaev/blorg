@@ -2,7 +2,7 @@
 
 diesel::table! {
     pages (id) {
-        id -> Nullable<Integer>,
+        id -> Integer,
         parent_id -> Nullable<Integer>,
         title -> Text,
         slug -> Text,
