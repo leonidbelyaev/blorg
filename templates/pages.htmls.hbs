@@ -4,18 +4,18 @@
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Blog Posts</title>
+    <title>Pages</title>
 </head>
 <body>
     <section id="hello">
-        <h1>Posts</h1>
-        New Posts
+        <h1>Pages</h1>
+        New Pages
         <ul>
-            {{#each posts}}
+            {{#each pages}}
             <li>Title: {{ this.title }}</li>
             <li>Body: {{ this.html_body }}</li>
             {{else}}
-            <p> No posts yet</p>
+            <p> No pages yet</p>
             {{/each}}
         </ul>
     </section>
