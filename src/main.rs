@@ -1,3 +1,4 @@
+#[macro_use] extern crate slugify;
 extern crate rocket;
 use rocket::{launch, routes};
 use rocket_dyn_templates::{ Template };

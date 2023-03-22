@@ -1,8 +1,10 @@
+use slugify::slugify;
 extern crate diesel;
 extern crate rocket;
 use diesel::sqlite::SqliteConnection;
 use diesel::prelude::*;
 use dotenvy::dotenv;
+use pandoc::PandocOutput;
 use rocket::response::{status::Created, Debug};
 use rocket::serde::{json::Json, Deserialize, Serialize};
 use rocket::{get, post };
@@ -33,12 +35,26 @@ pub fn create_page(page: Json<NewPage>) -> Result<Created<Json<NewPage>>> {
     use models::Page;
     let connection = &mut establish_connection();
 
+    let mut pandoc = pandoc::new();
+    pandoc.set_input(pandoc::InputKind::Pipe(page.org_content.to_string()));
+    pandoc.set_output(pandoc::OutputKind::Pipe);
+    pandoc.set_input_format(pandoc::InputFormat::Org, Vec::new());
+    pandoc.set_output_format(pandoc::OutputFormat::Html5, Vec::new());
+    let new_html_content = pandoc.execute().expect("Error converting org to html");
+    let new_html_content = match new_html_content {
+        PandocOutput::ToFile(pathbuf) => {panic!()},
+        PandocOutput::ToBuffer(string) => {string},
+        PandocOutput::ToBufferRaw(vec) => {panic!()}
+    };
+
+    let new_slug = slugify!(&page.title.to_string());
+
     let new_page = Page {
-        id: 1,
+        id: None,
         parent_id: page.parent_id,
         title: page.title.to_string(),
-        slug: page.title.to_string(), // TODO
-        html_content: page.org_content.to_string(), // TODO
+        slug: new_slug,
+        html_content: new_html_content,
     };
 
     diesel::insert_into(self::schema::pages::dsl::pages)
