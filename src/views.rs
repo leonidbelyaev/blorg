@@ -1,8 +1,9 @@
+use diesel::sql_types::Text;
 use slugify::slugify;
 extern crate diesel;
 extern crate rocket;
 use diesel::sqlite::SqliteConnection;
-use diesel::prelude::*;
+use diesel::{prelude::*, sql_query};
 use dotenvy::dotenv;
 use pandoc::PandocOutput;
 use rocket::response::{status::Created, Debug};
@@ -12,6 +13,7 @@ use crate::models;
 use crate::schema;
 use rocket_dyn_templates::{context, Template};
 use std::env;
+use std::path::PathBuf;
 
 type Result<T, E = Debug<diesel::result::Error>> = std::result::Result<T, E>;
 
@@ -73,4 +75,37 @@ pub fn list() -> Template {
         .load::<Page>(connection)
         .expect("Error loading pages");
     Template::render("pages", context! {pages: &results, count: results.len()})
+}
+
+#[get("/page/<path..>")]
+fn get_page(path: PathBuf) {
+    // use self::models::Page;
+    let connection = &mut establish_connection();
+    use self::models::Page;
+
+    use self::schema::pages::dsl::*;
+    // let pages = self::schema::pages::dsl::pages
+    //     .load::<Page>(connection)
+    //     .expect("Error loading pages");
+
+    // RECURSIVE SQL QUERY
+
+    let child = sql_query(
+        r#"WITH RECURSIVE CTE AS (
+             SELECT child_id, slug AS path
+             FROM pages
+             WHERE parent_id = 1
+             UNION ALL
+             SELECT p.child_id, path || '/' || slug
+             FROM pages p
+             JOIN CTE ON d.parent_id = CTE.child_id
+           )
+           SELECT *
+           FROM CTE
+           WHERE path = '?'
+"#
+    );
+    let child = child.bind::<Text, _>(path.to_str().unwrap().to_string()).load::<Page>(connection);
+    println!("{:?}", child);
+    todo!()
 }
