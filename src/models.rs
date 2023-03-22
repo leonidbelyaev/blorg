@@ -1,5 +1,5 @@
 use crate::schema::pages;
-use diesel::{prelude::*}
+use diesel::{prelude::*};
 use serde::{Serialize, Deserialize};
 
 #[derive(Queryable, Insertable, Serialize, Deserialize)]
