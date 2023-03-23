@@ -1,4 +1,4 @@
-use diesel::sql_types::Text;
+use diesel::sql_types::{Text, Integer};
 use slugify::slugify;
 extern crate diesel;
 extern crate rocket;
@@ -14,6 +14,8 @@ use crate::schema;
 use rocket_dyn_templates::{context, Template};
 use std::env;
 use std::path::PathBuf;
+use diesel::sql_types::{Nullable};
+use diesel::{prelude::*};
 
 type Result<T, E = Debug<diesel::result::Error>> = std::result::Result<T, E>;
 
@@ -78,34 +80,33 @@ pub fn list() -> Template {
 }
 
 #[get("/page/<path..>")]
-fn get_page(path: PathBuf) {
-    // use self::models::Page;
+pub fn get_page(path: PathBuf) -> Template {
     let connection = &mut establish_connection();
     use self::models::Page;
 
     use self::schema::pages::dsl::*;
-    // let pages = self::schema::pages::dsl::pages
-    //     .load::<Page>(connection)
-    //     .expect("Error loading pages");
 
     // RECURSIVE SQL QUERY
 
+    // Get all paths: then, compare with the path provided
     let child = sql_query(
-        r#"WITH RECURSIVE CTE AS (
-             SELECT child_id, slug AS path
+        r#"
+             WITH RECURSIVE CTE AS (
+             SELECT id, slug AS path
              FROM pages
-             WHERE parent_id = 1
+             WHERE parent_id IS NULL
              UNION ALL
-             SELECT p.child_id, path || '/' || slug
+             SELECT p.id, path || '/' || slug
              FROM pages p
-             JOIN CTE ON d.parent_id = CTE.child_id
+             JOIN CTE ON p.parent_id = CTE.id
            )
-           SELECT *
-           FROM CTE
-           WHERE path = '?'
+           SELECT * FROM pages WHERE id = (
+           SELECT id FROM CTE WHERE path = ?
+           );
 "#
     );
-    let child = child.bind::<Text, _>(path.to_str().unwrap().to_string()).load::<Page>(connection);
-    println!("{:?}", child);
-    todo!()
+    println!("path spec is {:?}", path.to_str().unwrap().to_string());
+    let child = child.bind::<Text, _>(path.to_str().unwrap().to_string()).load::<Page>(connection).expect("Failed to find page");
+    println!("Child is: {:?}", child);
+    Template::render("page", context! {page: &child})
 }

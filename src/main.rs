@@ -12,5 +12,6 @@ fn rocket() -> _ {
     rocket::build()
         .mount("/", routes![views::create_page])
         .mount("/", routes![views::list])
+        .mount("/", routes![views::get_page])
         .attach(Template::fairing())
 }
