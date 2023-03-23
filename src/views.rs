@@ -1,4 +1,5 @@
 use diesel::sql_types::{Text, Integer};
+use rocket::fs::NamedFile;
 use slugify::slugify;
 extern crate diesel;
 extern crate rocket;
@@ -13,7 +14,7 @@ use crate::models;
 use crate::schema;
 use rocket_dyn_templates::{context, Template};
 use std::env;
-use std::path::PathBuf;
+use std::path::{PathBuf, Path};
 use diesel::sql_types::{Nullable};
 use diesel::{prelude::*};
 
@@ -89,7 +90,7 @@ pub fn get_page(path: PathBuf) -> Template {
     // RECURSIVE SQL QUERY
 
     // Get all paths: then, compare with the path provided
-    let child = sql_query(
+    let query = sql_query(
         r#"
              WITH RECURSIVE CTE AS (
              SELECT id, slug AS path
@@ -106,7 +107,13 @@ pub fn get_page(path: PathBuf) -> Template {
 "#
     );
     println!("path spec is {:?}", path.to_str().unwrap().to_string());
-    let child = child.bind::<Text, _>(path.to_str().unwrap().to_string()).load::<Page>(connection).expect("Failed to find page");
+    let binding = query.bind::<Text, _>(path.to_str().unwrap().to_string()).load::<Page>(connection).expect("Database error finding page");
+    let child = binding.first().expect("No such page found");
     println!("Child is: {:?}", child);
     Template::render("page", context! {page: &child})
+}
+
+#[get("/<file..>")] // HACK
+pub async fn files(file: PathBuf) -> Option<NamedFile> {
+    NamedFile::open(Path::new("static/").join(file)).await.ok()
 }
