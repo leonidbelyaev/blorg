@@ -5,12 +5,16 @@
     <title>{% block title %}{% endblock title %}</title>
 </head>
 <body>
-    <nav>
-      {% block nav %}{% endblock nav %}
-    </nav>
+  <!-- TODO maybe if you scroll sufficiently far down the page, the selector bar fades out, and the article becomes centered -->
     <main>
-        {% block content %}{% endblock content %}
+        <nav>
+        {% block nav %}{% endblock nav %}
+        </nav>
+        <article>
+            {% block content %}{% endblock content %}
+        </article>
     </main>
+
     <footer>
       Leonid Belyaev 2023
     </footer>

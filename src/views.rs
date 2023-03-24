@@ -132,7 +132,7 @@ pub fn get_page(path: PathBuf) -> Template {
 
     // build a tree structure
 
-    let mut tree = TreeBuilder::new().with_root("/".to_owned()).build();
+    let mut tree = TreeBuilder::new().with_root("".to_owned()).build();
     let root_id = tree.root_id().expect("root doesn't exist");
 
     let mut tree_map = HashMap::new();
@@ -160,23 +160,28 @@ pub fn get_page(path: PathBuf) -> Template {
     // traverse tree to emit nav element
 
     let mut nav_element = String::from("");
+    let acc_path = String::from("");
 
     nav_element.push_str("<ul>");
-    process_node(&tree, root_id, root_id, &mut nav_element);
+    process_node(&tree, root_id, root_id, &mut nav_element, acc_path);
     nav_element.push_str("</ul>");
 
-    // TODO this can be simplified
-    fn process_node(tree: &Tree<String>, current_node_id: NodeId, root_id: NodeId, nav_element: &mut String) {
+    fn process_node(tree: &Tree<String>, current_node_id: NodeId, root_id: NodeId, nav_element: &mut String, acc_path: String) {
         nav_element.push_str("<li>");
-
         let current_node = tree.get(current_node_id).unwrap();
-        nav_element.push_str(format!("{}", current_node.data()).as_str());
-
         let children: Vec<NodeRef::<String>> = current_node.children().collect();
+        let new_path = if children.len() != 0 {
+            format!("{}{}/", acc_path, current_node.data())
+        } else {
+            format!("{}{}", acc_path, current_node.data())
+        };
+        nav_element.push_str(format!("<a href=\"http://localhost:8000/page{}\"><div>{}</div></a>", new_path, current_node.data()).as_str());
+
+        // TODO accumulate a slug-path, to be used as the href
         if children.len() != 0 {
             nav_element.push_str("<ul>");
             for child in current_node.children() {
-                process_node(tree, child.node_id(), root_id, nav_element);
+                process_node(tree, child.node_id(), root_id, nav_element, new_path.clone());
             }
             nav_element.push_str("</ul>");
         }
