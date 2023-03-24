@@ -6,6 +6,13 @@
 </head>
 <body>
   <!-- TODO maybe if you scroll sufficiently far down the page, the selector bar fades out, and the article becomes centered -->
+    <header>
+        leonidb
+        <br/>
+        <small>
+        Leonid Belyaev
+        </small>
+    </header>
     <main>
         <nav>
         {% block nav %}{% endblock nav %}

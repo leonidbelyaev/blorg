@@ -2,6 +2,20 @@
     box-sizing: border-box;
 }
 
+
+
+@font-face {
+  font-family: 'Univers';
+  src: url('font/univers.woff2') format('woff2');
+  font-style: normal;
+  font-weight: 300;
+}
+
+body {
+    font-family: "Univers";
+    background-image: url("img/orric.png");
+}
+
 article {
     border: 4px solid black;
     margin: 20px;
@@ -13,6 +27,8 @@ article {
 header {
     border: 4px solid black;
     margin: 20px auto;
+    padding: 20px;
+    background-color: white;
 }
 
 body {
@@ -29,9 +45,17 @@ nav {
 main {
     display: flex;
     border: 4px solid black;
+    background-color: white;
 }
 
 ul {
     list-style: none;
     padding: 5px;
+}
+
+footer {
+    background-color: white;
+    border: 4px solid black;
+    margin: 20px auto;
+    padding: 20px;
 }
