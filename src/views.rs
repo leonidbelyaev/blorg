@@ -109,24 +109,9 @@ pub fn get_page(path: PathBuf) -> Template {
 "#
     );
     println!("path spec is {:?}", path.to_str().unwrap().to_string());
-    let binding = query.bind::<Text, _>(path.to_str().unwrap().to_string()).load::<Page>(connection).expect("Database error finding page");
+    let binding = query.bind::<Text, _>(path.to_str().unwrap().to_string()).load::<Page>(connection).expect("Database error finding page"); // TODO fix database to contain root page
     let child = binding.first().expect("No such page found");
     println!("Child is: {:?}", child);
-
-//     let all_paths = sql_query(
-//      r#"
-//              WITH RECURSIVE CTE AS (
-//              SELECT id, parent_id, slug
-//              FROM pages
-//              WHERE parent_id IS NULL
-//              UNION ALL
-//              SELECT p.id, slug
-//              FROM pages p
-//              JOIN CTE ON p.parent_id = CTE.id
-//            )
-//            SELECT * FROM CTE
-// "#
-//     ).load::<(String)>(connection);
 
     let tree_source = pages.select((id, parent_id, slug)).load::<(Option<i32>, Option<i32>, String)>(connection).expect("Database error");
 
@@ -161,27 +146,32 @@ pub fn get_page(path: PathBuf) -> Template {
 
     let mut nav_element = String::from("");
     let acc_path = String::from("");
+    let binding = path.to_str().unwrap().to_string();
+    let mut segments: Vec<&str> = binding.split('/').collect();
+    segments.insert(0, ""); // root is on every path
 
     nav_element.push_str("<ul>");
-    process_node(&tree, root_id, root_id, &mut nav_element, acc_path);
+    process_node(&tree, root_id, root_id, &mut nav_element, acc_path, &mut segments);
     nav_element.push_str("</ul>");
 
-    fn process_node(tree: &Tree<String>, current_node_id: NodeId, root_id: NodeId, nav_element: &mut String, acc_path: String) {
+
+    fn process_node(tree: &Tree<String>, current_node_id: NodeId, root_id: NodeId, nav_element: &mut String, acc_path: String, segments: &mut Vec<&str>) {
         nav_element.push_str("<li>");
         let current_node = tree.get(current_node_id).unwrap();
         let children: Vec<NodeRef::<String>> = current_node.children().collect();
-        let new_path = if children.len() != 0 {
-            format!("{}{}/", acc_path, current_node.data())
+        let new_seg = if children.len() != 0 {
+            format!("{}/", current_node.data())
         } else {
-            format!("{}{}", acc_path, current_node.data())
+            format!("{}", current_node.data())
         };
-        nav_element.push_str(format!("<a href=\"http://localhost:8000/page{}\"><div>{}</div></a>", new_path, current_node.data()).as_str());
+        let new_path = format!("{}{}", acc_path, new_seg);
+        nav_element.push_str(format!("<a href=\"http://localhost:8000/page{}\"><div>{}</div></a>", new_path, new_seg).as_str());
 
-        // TODO accumulate a slug-path, to be used as the href
-        if children.len() != 0 {
+        if children.len() != 0 && segments.len() != 0 && current_node.data() == segments[0] {
+            segments.remove(0);
             nav_element.push_str("<ul>");
             for child in current_node.children() {
-                process_node(tree, child.node_id(), root_id, nav_element, new_path.clone());
+                process_node(tree, child.node_id(), root_id, nav_element, new_path.clone(), segments);
             }
             nav_element.push_str("</ul>");
         }
