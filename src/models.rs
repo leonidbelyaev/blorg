@@ -3,7 +3,7 @@ use diesel::{prelude::*};
 use serde::{Serialize, Deserialize};
 use diesel::sql_types::{Nullable, Integer, Text};
 
-#[derive(Queryable, QueryableByName, Insertable, AsChangeset, Serialize, Deserialize, Debug)]
+#[derive(Queryable, QueryableByName, Insertable, AsChangeset, Serialize, Deserialize, Debug, Clone)]
 #[diesel(primary_key(id))]
 #[diesel(table_name = pages)]
 pub struct Page {
