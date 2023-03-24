@@ -13,10 +13,12 @@ use rocket::{get, post };
 use crate::models;
 use crate::schema;
 use rocket_dyn_templates::{context, Template};
+use std::collections::HashMap;
 use std::env;
 use std::path::{PathBuf, Path};
 use diesel::sql_types::{Nullable};
 use diesel::{prelude::*};
+use slab_tree::*;
 
 type Result<T, E = Debug<diesel::result::Error>> = std::result::Result<T, E>;
 
@@ -110,7 +112,81 @@ pub fn get_page(path: PathBuf) -> Template {
     let binding = query.bind::<Text, _>(path.to_str().unwrap().to_string()).load::<Page>(connection).expect("Database error finding page");
     let child = binding.first().expect("No such page found");
     println!("Child is: {:?}", child);
-    Template::render("page", context! {page: &child})
+
+//     let all_paths = sql_query(
+//      r#"
+//              WITH RECURSIVE CTE AS (
+//              SELECT id, parent_id, slug
+//              FROM pages
+//              WHERE parent_id IS NULL
+//              UNION ALL
+//              SELECT p.id, slug
+//              FROM pages p
+//              JOIN CTE ON p.parent_id = CTE.id
+//            )
+//            SELECT * FROM CTE
+// "#
+//     ).load::<(String)>(connection);
+
+    let tree_source = pages.select((id, parent_id, slug)).load::<(Option<i32>, Option<i32>, String)>(connection).expect("Database error");
+
+    // build a tree structure
+
+    let mut tree = TreeBuilder::new().with_root("/".to_owned()).build();
+    let root_id = tree.root_id().expect("root doesn't exist");
+
+    let mut tree_map = HashMap::new();
+
+    for (ret_id, ret_parent_id, ret_slug) in tree_source {
+        if ret_parent_id == None {
+            let mut root = tree.get_mut(root_id).unwrap();
+            let slug_node = root.append(ret_slug);
+
+            let slug_node_id = slug_node.node_id();
+            tree_map.insert(ret_id, slug_node_id);
+        } else {
+            let tree_parent_id = tree_map.get(&ret_parent_id).unwrap();
+            let mut tree_parent = tree.get_mut(*tree_parent_id).unwrap();
+
+            let slug_node = tree_parent.append(ret_slug);
+
+            let slug_node_id = slug_node.node_id();
+            tree_map.insert(ret_id, slug_node_id);
+        }
+    }
+
+    println!("{:?}", &tree);
+
+    // traverse tree to emit nav element
+
+    let mut nav_element = String::from("");
+
+    nav_element.push_str("<ul>");
+    process_node(&tree, root_id, root_id, &mut nav_element);
+    nav_element.push_str("</ul>");
+
+    // TODO this can be simplified
+    fn process_node(tree: &Tree<String>, current_node_id: NodeId, root_id: NodeId, nav_element: &mut String) {
+        nav_element.push_str("<li>");
+
+        let current_node = tree.get(current_node_id).unwrap();
+        nav_element.push_str(format!("{}", current_node.data()).as_str());
+
+        let children: Vec<NodeRef::<String>> = current_node.children().collect();
+        if children.len() != 0 {
+            nav_element.push_str("<ul>");
+            for child in current_node.children() {
+                process_node(tree, child.node_id(), root_id, nav_element);
+            }
+            nav_element.push_str("</ul>");
+        }
+        nav_element.push_str("</li>");
+
+    }
+
+    println!("{}", nav_element);
+
+    Template::render("page", context! {page: &child, nav: &nav_element})
 }
 
 #[get("/<file..>")] // HACK

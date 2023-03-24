@@ -5,6 +5,9 @@
     <title>{% block title %}{% endblock title %}</title>
 </head>
 <body>
+    <nav>
+      {% block nav %}{% endblock nav %}
+    </nav>
     <main>
         {% block content %}{% endblock content %}
     </main>
