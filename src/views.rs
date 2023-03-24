@@ -9,7 +9,7 @@ use dotenvy::dotenv;
 use pandoc::PandocOutput;
 use rocket::response::{status::Created, Debug};
 use rocket::serde::{json::Json, Deserialize, Serialize};
-use rocket::{get, post };
+use rocket::{get, post, put};
 use crate::models;
 use crate::schema;
 use rocket_dyn_templates::{context, Template};
@@ -19,6 +19,7 @@ use std::path::{PathBuf, Path};
 use diesel::sql_types::{Nullable};
 use diesel::{prelude::*};
 use slab_tree::*;
+use models::Page;
 
 type Result<T, E = Debug<diesel::result::Error>> = std::result::Result<T, E>;
 
@@ -36,32 +37,39 @@ pub struct NewPage {
     org_content: String,
 }
 
+#[derive(Serialize, Deserialize)]
+pub struct UpdatePage {
+    id: Option<i32>,
+    title: String,
+    org_content: String,
+}
+
+fn org2html(org: String) -> String {
+    let mut pandoc = pandoc::new();
+    pandoc.set_input(pandoc::InputKind::Pipe(org));
+    pandoc.set_output(pandoc::OutputKind::Pipe);
+    pandoc.set_input_format(pandoc::InputFormat::Org, Vec::new());
+    pandoc.set_output_format(pandoc::OutputFormat::Html5, Vec::new());
+    let new_html_content = pandoc.execute().expect("Error converting org to html");
+    match new_html_content {
+        PandocOutput::ToFile(pathbuf) => {panic!()},
+        PandocOutput::ToBuffer(string) => {string},
+        PandocOutput::ToBufferRaw(vec) => {panic!()}
+    }
+}
+
 #[post("/pages", format = "json", data = "<page>")]
 pub fn create_page(page: Json<NewPage>) -> Result<Created<Json<NewPage>>> {
     use self::schema::pages::dsl::*;
     use models::Page;
     let connection = &mut establish_connection();
 
-    let mut pandoc = pandoc::new();
-    pandoc.set_input(pandoc::InputKind::Pipe(page.org_content.to_string()));
-    pandoc.set_output(pandoc::OutputKind::Pipe);
-    pandoc.set_input_format(pandoc::InputFormat::Org, Vec::new());
-    pandoc.set_output_format(pandoc::OutputFormat::Html5, Vec::new());
-    let new_html_content = pandoc.execute().expect("Error converting org to html");
-    let new_html_content = match new_html_content {
-        PandocOutput::ToFile(pathbuf) => {panic!()},
-        PandocOutput::ToBuffer(string) => {string},
-        PandocOutput::ToBufferRaw(vec) => {panic!()}
-    };
-
-    let new_slug = slugify!(&page.title.to_string());
-
     let new_page = Page {
         id: None,
         parent_id: page.parent_id,
         title: page.title.to_string(),
-        slug: new_slug,
-        html_content: new_html_content,
+        slug: slugify!(&page.title.to_string()),
+        html_content: org2html(page.org_content.to_string()),
     };
 
     diesel::insert_into(self::schema::pages::dsl::pages)
@@ -72,14 +80,29 @@ pub fn create_page(page: Json<NewPage>) -> Result<Created<Json<NewPage>>> {
     Ok(Created::new("/").body(page))
 }
 
-#[get("/pages")]
-pub fn list() -> Template {
-    use self::models::Page;
+#[put("/pages", format="json", data="<page>")]
+pub fn put_page(page: Json<UpdatePage>) -> Result<Created<Json<Page>>> {
+    use self::schema::pages::dsl::*;
+
     let connection = &mut establish_connection();
-    let results = self::schema::pages::dsl::pages
-        .load::<Page>(connection)
-        .expect("Error loading pages");
-    Template::render("pages", context! {pages: &results, count: results.len()})
+
+    let binding = pages.filter(id.eq(page.id)).load::<Page>(connection).unwrap();
+
+    let old_page = binding.first().unwrap();
+
+    // get the page to patch it?
+
+    let new_page = Page {
+        id: page.id,
+        parent_id: old_page.parent_id,
+        title: page.title.to_string(),
+        slug: slugify!(&page.title.to_string()),
+        html_content: org2html(page.org_content.to_string()),
+    };
+
+    diesel::update(pages).set(&new_page).execute(connection).expect("Failed to meow meow meow");
+
+    Ok(Created::new("/").body(Json(new_page)))
 }
 
 #[get("/page/<path..>")]
