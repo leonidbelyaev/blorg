@@ -10,10 +10,10 @@ mod views;
 #[launch]
 fn rocket() -> _ {
     rocket::build()
-        .mount("/", routes![views::create_page])
         .mount("/", routes![views::get_page])
-        //.mount("/", routes![views::put_page_id])
         .mount("/", routes![views::put_page_path])
         .mount("/", routes![views::files])
+        .mount("/api/", routes![views::put_page_id])
+        .mount("/api/", routes![views::create_page_id])
         .attach(Template::fairing())
 }

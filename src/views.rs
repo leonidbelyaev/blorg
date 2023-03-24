@@ -59,7 +59,7 @@ fn org2html(org: String) -> String {
 }
 
 #[post("/pages", format = "json", data = "<page>")]
-pub fn create_page(page: Json<NewPage>) -> Result<Created<Json<NewPage>>> {
+pub fn create_page_id(page: Json<NewPage>) -> Result<Created<Json<NewPage>>> {
     use self::schema::pages::dsl::*;
     use models::Page;
     let connection = &mut establish_connection();
@@ -71,37 +71,34 @@ pub fn create_page(page: Json<NewPage>) -> Result<Created<Json<NewPage>>> {
         slug: slugify!(&page.title.to_string()),
         html_content: org2html(page.org_content.to_string()),
     };
-
-    diesel::insert_into(self::schema::pages::dsl::pages)
-        .values(&new_page)
-        .execute(connection)
+diesel::insert_into(self::schema::pages::dsl::pages) .values(&new_page) .execute(connection)
         .expect("Error saving new page");
 
     Ok(Created::new("/").body(page))
 }
 
-// #[put("/pages", format="json", data="<page>")]
-// pub fn put_page_id(page: Json<UpdatePage>) -> Result<Created<Json<Page>>> {
-//     use self::schema::pages::dsl::*;
+#[put("/pages", format="json", data="<page>")]
+pub fn put_page_id(page: Json<UpdatePage>) -> Result<Created<Json<Page>>> {
+    use self::schema::pages::dsl::*;
 
-//     let connection = &mut establish_connection();
+    let connection = &mut establish_connection();
 
-//     let binding = pages.filter(id.eq(page.id)).load::<Page>(connection).unwrap();
+    let binding = pages.filter(id.eq(page.id)).load::<Page>(connection).unwrap();
 
-//     let old_page = binding.first().unwrap();
+    let old_page = binding.first().unwrap();
 
-//     let new_page = Page {
-//         id: page.id,
-//         parent_id: old_page.parent_id,
-//         title: page.title.to_string(),
-//         slug: slugify!(&page.title.to_string()),
-//         html_content: org2html(page.org_content.to_string()),
-//     }; // TODO explore changeset updatepage
+    let new_page = Page {
+        id: page.id,
+        parent_id: old_page.parent_id,
+        title: page.title.to_string(),
+        slug: slugify!(&page.title.to_string()),
+        html_content: org2html(page.org_content.to_string()),
+    }; // TODO explore changeset updatepage
 
-//     diesel::update(pages).filter(id.eq(new_page.id)).set(&new_page).execute(connection).expect("Failed to meow meow meow");
+    diesel::update(pages).filter(id.eq(new_page.id)).set(&new_page).execute(connection).expect("Failed to meow meow meow");
 
-//     Ok(Created::new("/").body(Json(new_page)))
-// }
+    Ok(Created::new("/").body(Json(new_page)))
+}
 
 #[put("/pages/<path..>", format="json", data="<new_page>")]
 pub fn put_page_path(new_page: Json<NewPage>, path: PathBuf) -> Result<Created<Json<Page>>> {
@@ -110,7 +107,7 @@ pub fn put_page_path(new_page: Json<NewPage>, path: PathBuf) -> Result<Created<J
 
     use self::schema::pages::dsl::*;
 
-    let child = path2page(path);
+    let child = path2page(&path);
 
     let put_page = Page {
         id: child.id,
@@ -120,12 +117,12 @@ pub fn put_page_path(new_page: Json<NewPage>, path: PathBuf) -> Result<Created<J
         html_content: org2html(new_page.org_content.to_string())
     };
 
-    diesel::update(pages).filter(id.eq(child.iq)).set(&put_page).execute(connection).expect("Failed to update page from path");
+    diesel::update(pages).filter(id.eq(child.id)).set(&put_page).execute(connection).expect("Failed to update page from path");
 
     Ok(Created::new("/").body(Json(put_page)))
 }
 
-fn path2page(path: PathBuf) -> Page {
+fn path2page(path: &PathBuf) -> Page {
     let connection = &mut establish_connection();
     use self::models::Page;
 
@@ -148,10 +145,10 @@ fn path2page(path: PathBuf) -> Page {
 "#
     );
     println!("path spec is {:?}", path.to_str().unwrap().to_string());
-    let binding = query.bind::<Text, _>(path.to_str().unwrap().to_string()).load::<Page>(connection).expect("Database error finding page"); // TODO fix database to contain root page
+    let binding = query.bind::<Text, _>(path.to_str().unwrap().to_string()).load::<Page>(connection).expect("Database error finding page");
     let child = binding.first().expect("No such page found");
     println!("Child is: {:?}", child);
-    child.clone() // TODO why is this needed?
+    child.clone()
 }
 
 #[get("/page/<path..>")]
@@ -161,7 +158,7 @@ pub fn get_page(path: PathBuf) -> Template {
 
     use self::schema::pages::dsl::*;
 
-    let child = path2page(path);
+    let child = path2page(&path);
 
     let tree_source = pages.select((id, parent_id, slug)).load::<(Option<i32>, Option<i32>, String)>(connection).expect("Database error");
 
