@@ -90,17 +90,15 @@ pub fn put_page(page: Json<UpdatePage>) -> Result<Created<Json<Page>>> {
 
     let old_page = binding.first().unwrap();
 
-    // get the page to patch it?
-
     let new_page = Page {
         id: page.id,
         parent_id: old_page.parent_id,
         title: page.title.to_string(),
         slug: slugify!(&page.title.to_string()),
         html_content: org2html(page.org_content.to_string()),
-    };
+    }; // TODO explore changeset updatepage
 
-    diesel::update(pages).set(&new_page).execute(connection).expect("Failed to meow meow meow");
+    diesel::update(pages).filter(id.eq(new_page.id)).set(&new_page).execute(connection).expect("Failed to meow meow meow");
 
     Ok(Created::new("/").body(Json(new_page)))
 }
