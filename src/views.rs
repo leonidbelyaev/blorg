@@ -59,7 +59,7 @@ fn org2html(org: String) -> String {
 }
 
 #[post("/pages", format = "json", data = "<page>")]
-pub fn create_page_id(page: Json<NewPage>) -> Result<Created<Json<NewPage>>> {
+pub fn create_page_id(page: Json<NewPage>) -> Result<Created<Json<Page>>> {
     use self::schema::pages::dsl::*;
     use models::Page;
     let connection = &mut establish_connection();
@@ -74,7 +74,28 @@ pub fn create_page_id(page: Json<NewPage>) -> Result<Created<Json<NewPage>>> {
 diesel::insert_into(self::schema::pages::dsl::pages) .values(&new_page) .execute(connection)
         .expect("Error saving new page");
 
-    Ok(Created::new("/").body(page))
+    Ok(Created::new("/").body(Json(new_page)))
+}
+
+#[post("/pages/<path..>", format="json", data = "<page>")]
+pub fn create_page(page: Json<NewPage>, path: PathBuf) -> Result<Created<Json<Page>>> {
+    use models::Page;
+    let connection = &mut establish_connection();
+
+    let parent = path2page(&path);
+
+    let new_page = Page {
+        id: None,
+        parent_id: parent.id,
+        title: page.title.to_string(),
+        slug: slugify!(&page.title.to_string()),
+        html_content: org2html(page.org_content.to_string()),
+    };
+
+    diesel::insert_into(self::schema::pages::dsl::pages) .values(&new_page) .execute(connection)
+        .expect("Error saving new page");
+
+    Ok(Created::new("/").body(Json(new_page)))
 }
 
 #[put("/pages", format="json", data="<page>")]
