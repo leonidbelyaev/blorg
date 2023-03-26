@@ -7,11 +7,13 @@
 <body>
   <!-- TODO maybe if you scroll sufficiently far down the page, the selector bar fades out, and the article becomes centered -->
     <header>
+        <a href="http://localhost:8000/pages/">
         leonidb
         <br/>
         <small>
         Leonid Belyaev
         </small>
+        </a>
     </header>
     <main>
         <nav>

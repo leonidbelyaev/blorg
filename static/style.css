@@ -24,6 +24,23 @@ article {
     padding: 10px;
 }
 
+article a::before {
+    content:"{";
+}
+
+article a::after {
+    content:"}";
+}
+
+a {
+    color: #000;
+}
+
+a:hover {
+    background-color: #000;
+    color: #fff;
+}
+
 header {
     border: 4px solid black;
     margin: 20px auto;

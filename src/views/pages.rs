@@ -235,7 +235,7 @@ pub fn get_page(path: PathBuf) -> Template {
             format!("{}", current_node.data())
         };
         let new_path = format!("{}{}", acc_path, new_seg);
-        nav_element.push_str(format!("<a href=\"http://localhost:8000/pages{}\"><div>{}</div></a>", new_path, new_seg).as_str());
+        nav_element.push_str(format!("<a href=\"http://localhost:8000/pages{}\">{}</a>", new_path, new_seg).as_str());
 
         if children.len() != 0 && segments.len() != 0 && current_node.data() == segments[0] {
             segments.remove(0);

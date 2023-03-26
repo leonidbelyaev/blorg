@@ -13,6 +13,7 @@ serde = "1.0.152"
 pandoc = "0.8.10"
 slugify = "0.1.0"
 slab_tree = "0.3.2"
+rust-crypto = "0.2.36"
 
 [dependencies.rocket_dyn_templates]
 features = ["tera"]
