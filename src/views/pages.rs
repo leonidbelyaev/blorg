@@ -20,15 +20,9 @@ use diesel::sql_types::{Nullable};
 use diesel::{prelude::*};
 use slab_tree::*;
 use models::Page;
+use crate::views::establish_connection;
 
 type Result<T, E = Debug<diesel::result::Error>> = std::result::Result<T, E>;
-
-pub fn establish_connection() -> SqliteConnection {
-    dotenv().ok();
-    let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
-    SqliteConnection::establish(&database_url)
-        .unwrap_or_else(|_| panic!("Error connecting to {}", database_url))
-}
 
 #[derive(Serialize, Deserialize)]
 pub struct NewPage {
