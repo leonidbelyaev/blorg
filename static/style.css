@@ -46,6 +46,11 @@ header {
     margin: 20px auto;
     padding: 20px;
     background-color: white;
+    display: flex;
+}
+
+header .actionBox {
+    margin-left: auto;
 }
 
 body {
