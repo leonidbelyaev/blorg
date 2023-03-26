@@ -51,6 +51,7 @@ fn org2html(org: String) -> String {
     pandoc.set_input_format(pandoc::InputFormat::Org, Vec::new());
     pandoc.set_output_format(pandoc::OutputFormat::Html5, Vec::new());
     pandoc.add_option(PandocOption::HighlightStyle(String::from("zenburn")));
+    pandoc.add_option(PandocOption::TableOfContents);
     let new_html_content = pandoc.execute().expect("Error converting org to html");
     match new_html_content {
         PandocOutput::ToFile(pathbuf) => {panic!()},
