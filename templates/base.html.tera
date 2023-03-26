@@ -16,9 +16,7 @@
         </a>
     </header>
     <main>
-        <nav>
         {% block nav %}{% endblock nav %}
-        </nav>
         <article>
             {% block content %}{% endblock content %}
         </article>

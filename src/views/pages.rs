@@ -14,7 +14,6 @@ use crate::models;
 use crate::schema;
 use rocket_dyn_templates::{context, Template};
 use std::collections::HashMap;
-use std::env;
 use std::path::{PathBuf, Path};
 use diesel::sql_types::{Nullable};
 use diesel::{prelude::*};
@@ -248,7 +247,3 @@ pub fn get_page(path: PathBuf) -> Template {
     Template::render("page", context! {page: &child, nav: &nav_element})
 }
 
-#[get("/<file..>")] // HACK
-pub async fn files(file: PathBuf) -> Option<NamedFile> {
-    NamedFile::open(Path::new("static/").join(file)).await.ok()
-}

@@ -13,6 +13,12 @@ fn rocket() -> _ {
         .mount("/", routes![views::pages::get_page])
         .mount("/", routes![views::pages::put_page_path])
         .mount("/", routes![views::pages::create_page])
+
+        .mount("/", routes![views::users::create_form])
+        .mount("/", routes![views::users::create])
+        .mount("/", routes![views::users::login_form])
+        .mount("/", routes![views::users::login])
+
         .mount("/api/", routes![views::pages::put_page_id])
         .mount("/api/", routes![views::pages::create_page_id])
         .mount("/", routes![views::files])

@@ -1,0 +1,16 @@
+{% extends "base" %}
+
+{% block nav %}
+{% endblock nav %}
+
+{% block title %}Create User{% endblock title %}
+
+{% block content %}
+<form action="http://localhost:8000/users/create" method="post">
+  <label for="username">Username</label>
+  <input class="input" type="text" name="username">
+  <label for="password">Password</label>
+  <input class="input" type="text" name="password">
+  <button>Create user</button>
+</form>
+{% endblock content %}

@@ -1,7 +1,9 @@
 {% extends "base" %}
 
 {% block nav %}
+<nav>
 {{ nav | safe }}
+</nav>
 {% endblock nav %}
 
 {% block title %}{{ page.title }}{% endblock title %}
