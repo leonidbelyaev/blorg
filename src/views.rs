@@ -6,7 +6,7 @@ extern crate rocket;
 use diesel::sqlite::SqliteConnection;
 use diesel::{prelude::*, sql_query};
 use dotenvy::dotenv;
-use pandoc::PandocOutput;
+use pandoc::{PandocOutput, PandocOption};
 use rocket::response::{status::Created, Debug};
 use rocket::serde::{json::Json, Deserialize, Serialize};
 use rocket::{get, post, put};
@@ -50,6 +50,7 @@ fn org2html(org: String) -> String {
     pandoc.set_output(pandoc::OutputKind::Pipe);
     pandoc.set_input_format(pandoc::InputFormat::Org, Vec::new());
     pandoc.set_output_format(pandoc::OutputFormat::Html5, Vec::new());
+    pandoc.add_option(PandocOption::HighlightStyle(String::from("zenburn")));
     let new_html_content = pandoc.execute().expect("Error converting org to html");
     match new_html_content {
         PandocOutput::ToFile(pathbuf) => {panic!()},
@@ -172,7 +173,7 @@ fn path2page(path: &PathBuf) -> Page {
     child.clone()
 }
 
-#[get("/page/<path..>")]
+#[get("/pages/<path..>")]
 pub fn get_page(path: PathBuf) -> Template {
     let connection = &mut establish_connection();
     use self::models::Page;
@@ -233,7 +234,7 @@ pub fn get_page(path: PathBuf) -> Template {
             format!("{}", current_node.data())
         };
         let new_path = format!("{}{}", acc_path, new_seg);
-        nav_element.push_str(format!("<a href=\"http://localhost:8000/page{}\"><div>{}</div></a>", new_path, new_seg).as_str());
+        nav_element.push_str(format!("<a href=\"http://localhost:8000/pages{}\"><div>{}</div></a>", new_path, new_seg).as_str());
 
         if children.len() != 0 && segments.len() != 0 && current_node.data() == segments[0] {
             segments.remove(0);
