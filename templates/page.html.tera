@@ -9,5 +9,18 @@
 {% block title %}{{ page.title }}{% endblock title %}
 
 {% block content %}
+{% if is_user %}
+<div class="adminPanel">
+  <button onclick="window.location.href='http://localhost:8000/edit/pages/{{ path }}';">
+    EDIT
+  </button>
+  <button onclick="window.location.href='http://localhost:8000/delete/pages/{{ path }}';">
+    DELETE
+  </button>
+  <button onclick="window.location.href='http://localhost:8000/create/pages/{{ path }}';">
+    CREATE CHILD
+  </button>
+</div>
+{% endif %}
 {{ page.html_content | safe}}
 {% endblock content %}

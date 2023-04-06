@@ -1,6 +1,14 @@
 // @generated automatically by Diesel CLI.
 
 diesel::table! {
+    config (id) {
+        id -> Nullable<Integer>,
+        serialized_page_tree -> Binary,
+        root_url -> Text,
+    }
+}
+
+diesel::table! {
     pages (id) {
         id -> Nullable<Integer>,
         parent_id -> Nullable<Integer>,
@@ -11,15 +19,15 @@ diesel::table! {
 }
 
 diesel::table! {
-    users (id) {
+    admins (id) {
         id -> Nullable<Integer>,
         username -> Text,
         password_hash -> Text,
-        is_admin -> Bool,
     }
 }
 
 diesel::allow_tables_to_appear_in_same_query!(
+    config,
     pages,
-    users,
+    admins,
 );

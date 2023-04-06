@@ -1,5 +1,6 @@
 use diesel::sql_types::{Text, Integer};
 use rocket::fs::NamedFile;
+use rocket::http::CookieJar;
 use slugify::slugify;
 extern crate diesel;
 extern crate rocket;
@@ -167,8 +168,35 @@ fn path2page(path: &PathBuf) -> Page {
     child.clone()
 }
 
+#[get("/create/pages/<path..>")]
+pub fn edit_page_form(path: PathBuf, jar: &CookieJar<'_>) -> Template {
+    if !is_logged_in(jar) {
+       panic!("Not logged in.");
+    }
+
+    let page = path2page(&path);
+
+    // TODO get Nav element for a particular page function
+
+    todo!();
+
+    // Template::render("edit_page", context! {page: &child, nav: &nav_element, is_user: is_user, path: path, pageroot: pageroot}) // todo When logged in, expose buttons
+}
+
+fn is_logged_in(jar: &CookieJar<'_>) -> bool {
+    match jar.get_private("user_id") {
+        Some(_) => true,
+        None => false
+    }
+}
+
+fn generate_nav() {
+// TODO store the tree as a state, update whenever we add or delete
+ todo!()
+}
+
 #[get("/pages/<path..>")]
-pub fn get_page(path: PathBuf) -> Template {
+pub fn get_page(path: PathBuf, jar: &CookieJar<'_>) -> Template {
     let connection = &mut establish_connection();
     use self::models::Page;
 
@@ -242,8 +270,15 @@ pub fn get_page(path: PathBuf) -> Template {
 
     }
 
+    let is_user = match jar.get_private("user_id") {
+        Some(other_id) => true,
+        None => false
+    };
+
     println!("{}", nav_element);
 
-    Template::render("page", context! {page: &child, nav: &nav_element})
+    let pageroot = "http://localhost:8000";
+
+    Template::render("page", context! {page: &child, nav: &nav_element, is_user: is_user, path: path, pageroot: pageroot}) // todo When logged in, expose buttons
 }
 

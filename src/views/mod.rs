@@ -1,5 +1,5 @@
 pub mod pages;
-pub mod users;
+pub mod admins;
 use std::env;
 use diesel::{prelude::*};
 use diesel::sqlite::SqliteConnection;

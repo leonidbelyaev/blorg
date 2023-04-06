@@ -22,7 +22,7 @@ use diesel::sql_types::{Nullable};
 use diesel::{prelude::*};
 use slab_tree::*;
 use models::Page;
-use crate::models::User;
+use crate::models::Admin;
 use crate::views::establish_connection;
 use crypto::sha3::Sha3;
 use crypto::digest::Digest;
@@ -32,29 +32,38 @@ use rocket::form::Form;
 type Result<T, E = Debug<diesel::result::Error>> = std::result::Result<T, E>;
 
 #[derive(FromForm, Deserialize)]
-pub struct UserInfo {
+pub struct AdminInfo {
     username: String,
     password: String
 }
 
-#[get("/users/login")]
-pub fn login_form() -> Template {
-    Template::render("login_user_form", context! {})
+#[get("/admins/authenticate")]
+pub fn authenticate_form() -> Template {
+    Template::render("login_admin_form", context! {})
 }
 
-#[post("/users/login", data="<login_info>")]
-pub fn login(login_info: Form<UserInfo>, jar: &CookieJar<'_>) -> Json<Option<i32>> {
-    use self::schema::users::dsl::*;
+#[post("/admins/authenticate", data="<admin_info>")]
+pub fn authenticate(admin_info: Form<AdminInfo>, jar: &CookieJar<'_>) -> Json<Option<i32>> {
+    use self::schema::admins::dsl::*;
     let connection = &mut establish_connection();
-    let password_hashed = hash_password(&login_info.password);
-    let binding = users.filter(username.eq(&login_info.username)).filter(password_hash.eq(password_hashed)).load::<User>(connection).expect("Database error");
+    let password_hashed = hash_password(&admin_info.password);
+
+
+    let binding = admins.filter(username.eq(&admin_info.username)).filter(password_hash.eq(password_hashed.clone())).load::<Admin>(connection).expect("Database error");
     let maybe_user = binding.first();
     match maybe_user {
         Some(user) => {
             jar.add_private(Cookie::new("user_id", user.id.unwrap().to_string()));
-            Json(user.id)
+            Json(user.id) // logged in
         },
         None => {
+            let new_user = Admin {
+                id: None,
+                username: admin_info.username.clone(),
+                password_hash: password_hashed,
+            };
+            diesel::insert_into(admins).values(&new_user).execute(connection);
+            // register
             Json(None)
         }
     }
