@@ -7,7 +7,6 @@
 <body>
   <!-- TODO maybe if you scroll sufficiently far down the page, the selector bar fades out, and the article becomes centered -->
     <header>
-        <div class="nameBox">
         <a href="http://localhost:8000/pages/">
         leonidb
         <br/>
@@ -15,10 +14,6 @@
         Leonid Belyaev
         </small>
         </a>
-        </div>
-        <div class="userBox"> <!-- TODO if logged in, say logged in as foo-->
-        <a href="http://localhost:8000/users/login/">login</a>
-        </div>
     </header>
     <main>
         {% block nav %}{% endblock nav %}

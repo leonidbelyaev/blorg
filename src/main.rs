@@ -14,8 +14,6 @@ fn rocket() -> _ {
         .mount("/", routes![views::pages::put_page_path])
         .mount("/", routes![views::pages::create_page])
 
-        .mount("/", routes![views::users::create_form])
-        .mount("/", routes![views::users::create])
         .mount("/", routes![views::users::login_form])
         .mount("/", routes![views::users::login])
 

@@ -37,30 +37,6 @@ pub struct UserInfo {
     password: String
 }
 
-#[get("/users/create")]
-pub fn create_form() -> Template {
-    Template::render("create_user_form", context! {})
-}
-
-#[post("/users/create", data="<user_info>")] // TODO need to be a logged-in admin to add new users
-pub fn create(user_info: Form<UserInfo>)
-  -> Result<Created<Json<User>>> {
-    use self::schema::users;
-    let connection = &mut establish_connection();
-    let count: i64 = *users::table.count().get_results(connection).expect("Database error").first().unwrap();
-    let new_user = User
-        {
-            id: None,
-            username: user_info.username.clone(),
-            password_hash: hash_password(&user_info.password.clone()),
-            is_admin: if count > 0 { true } else { false } // first user is the admin.
-        };
-    diesel::insert_into(self::schema::users::dsl::users).values(&new_user).execute(connection)
-                                                        .expect("Error saving new user");
-
-    Ok(Created::new("/").body(Json(new_user))) // TODO this is insecure
-}
-
 #[get("/users/login")]
 pub fn login_form() -> Template {
     Template::render("login_user_form", context! {})
