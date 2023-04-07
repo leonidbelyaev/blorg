@@ -4,6 +4,7 @@ use rocket::{launch, routes};
 use rocket_dyn_templates::{ Template };
 use slab_tree::tree::Tree;
 use crate::views::establish_connection;
+use diesel::{prelude::*};
 
 mod schema;
 mod models;
@@ -11,7 +12,6 @@ mod views;
 
 #[launch]
 fn rocket() -> _ {
-    let connection = &mut establish_connection();
 
     rocket::build()
         .mount("/", routes![views::pages::get_page])

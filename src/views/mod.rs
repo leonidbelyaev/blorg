@@ -1,5 +1,6 @@
 pub mod pages;
 pub mod admins;
+
 use std::env;
 use diesel::{prelude::*};
 use diesel::sqlite::SqliteConnection;
@@ -7,6 +8,7 @@ use dotenvy::dotenv;
 use rocket::fs::NamedFile;
 use std::path::{Path, PathBuf};
 use rocket::{get, post, put};
+use rocket::http::CookieJar;
 
 pub fn establish_connection() -> SqliteConnection {
     dotenv().ok();
@@ -18,4 +20,11 @@ pub fn establish_connection() -> SqliteConnection {
 #[get("/<file..>")] // HACK
 pub async fn files(file: PathBuf) -> Option<NamedFile> {
     NamedFile::open(Path::new("static/").join(file)).await.ok()
+}
+
+pub fn is_logged_in(jar: &CookieJar<'_>) -> bool {
+    match jar.get_private("user_id") {
+        Some(_) => true,
+        None => false
+    }
 }

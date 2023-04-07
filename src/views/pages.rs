@@ -20,7 +20,7 @@ use diesel::sql_types::{Nullable};
 use diesel::{prelude::*};
 use slab_tree::*;
 use models::Page;
-use crate::views::establish_connection;
+use crate::views::{establish_connection, is_logged_in};
 
 type Result<T, E = Debug<diesel::result::Error>> = std::result::Result<T, E>;
 
@@ -183,12 +183,6 @@ pub fn edit_page_form(path: PathBuf, jar: &CookieJar<'_>) -> Template {
     // Template::render("edit_page", context! {page: &child, nav: &nav_element, is_user: is_user, path: path, pageroot: pageroot}) // todo When logged in, expose buttons
 }
 
-fn is_logged_in(jar: &CookieJar<'_>) -> bool {
-    match jar.get_private("user_id") {
-        Some(_) => true,
-        None => false
-    }
-}
 
 fn generate_nav() {
 // TODO store the tree as a state, update whenever we add or delete
