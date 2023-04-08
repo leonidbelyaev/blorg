@@ -1,0 +1,16 @@
+{% extends "base" %}
+
+{% block nav %}
+{% endblock nav %}
+
+{% block title %}Edit page{% endblock title %}
+
+{% block content %}
+<form action="/edit/pages/{{ path }}" method="post">
+  <label for="title">Title</label>
+  <input class="input" type="text" name="title" value="{{ page.title }}">
+  <label for="html_content">HTML Content</label>
+  <input class="input" type="text" name="html_content" value="{{ page.html_content }}">
+  <button>Edit Page</button>
+</form>
+{% endblock content %}

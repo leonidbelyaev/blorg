@@ -35,7 +35,7 @@ pub struct NewPage {
 }
 
 #[derive(Serialize, Deserialize, FromForm)]
-pub struct ChildPage {
+pub struct PageInfo {
     title: String,
     html_content: String,
 }
@@ -63,15 +63,8 @@ fn org2html(org: String) -> String {
     }
 }
 
-
-
-fn generate_nav() {
-// TODO store the tree as a state, update whenever we add or delete
- todo!()
-}
-
 #[post("/pages/<path..>", data = "<child_page>")]
-pub fn create_child_page(child_page: Form<ChildPage>, path: PathBuf, admin: AuthenticatedAdmin) -> Result<Created<Json<Page>>> {
+pub fn create_child_page(child_page: Form<PageInfo>, path: PathBuf, admin: AuthenticatedAdmin) -> Result<Created<Json<Page>>> {
     use models::Page;
     let connection = &mut establish_connection();
 
@@ -188,8 +181,8 @@ pub fn get_page(path: PathBuf, jar: &CookieJar<'_>) -> Template {
     Template::render("page", context! {page: &child, nav: &nav_element, is_user: is_user, path: path, pageroot: pageroot}) // todo When logged in, expose buttons
 }
 
-#[put("/pages/<path..>", format="json", data="<new_page>")]
-pub fn put_page_path(new_page: Json<NewPage>, path: PathBuf) -> Result<Created<Json<Page>>> {
+#[post("/edit/pages/<path..>", data="<new_page>")]
+pub fn edit_page(new_page: Form<PageInfo>, path: PathBuf, admin: AuthenticatedAdmin) -> Redirect {
     let connection = &mut establish_connection();
     use self::models::Page;
 
@@ -202,13 +195,43 @@ pub fn put_page_path(new_page: Json<NewPage>, path: PathBuf) -> Result<Created<J
         parent_id: child.parent_id,
         title: new_page.title.to_string(),
         slug: slugify!(&new_page.title.to_string()),
-        html_content: org2html(new_page.org_content.to_string())
+        html_content: new_page.html_content.to_string()
     };
 
     diesel::update(pages).filter(id.eq(child.id)).set(&put_page).execute(connection).expect("Failed to update page from path");
 
-    Ok(Created::new("/").body(Json(put_page)))
+    Redirect::to(uri!(get_page(path)))
 }
+
+
+#[get("/edit/pages/<path..>")]
+pub fn edit_page_form(admin: AuthenticatedAdmin, path: PathBuf) -> Template {
+    let page = path2page(&path);
+
+    Template::render("edit_page_form", context!{page: page, path: path})
+}
+
+// #[put("/pages/<path..>", format="json", data="<new_page>")]
+// pub fn put_page_path(new_page: Json<NewPage>, path: PathBuf) -> Result<Created<Json<Page>>> {
+//     let connection = &mut establish_connection();
+//     use self::models::Page;
+
+//     use self::schema::pages::dsl::*;
+
+//     let child = path2page(&path);
+
+//     let put_page = Page {
+//         id: child.id,
+//         parent_id: child.parent_id,
+//         title: new_page.title.to_string(),
+//         slug: slugify!(&new_page.title.to_string()),
+//         html_content: org2html(new_page.org_content.to_string())
+//     };
+
+//     diesel::update(pages).filter(id.eq(child.id)).set(&put_page).execute(connection).expect("Failed to update page from path");
+
+//     Ok(Created::new("/").body(Json(put_page)))
+// }
 
 #[get("/delete/pages/<path..>")]
 pub fn delete_page(path: PathBuf, admin: AuthenticatedAdmin) -> Redirect {
@@ -303,19 +326,4 @@ fn path2page(path: &PathBuf) -> Page {
     let child = binding.first().expect("No such page found");
     println!("Child is: {:?}", child);
     child.clone()
-}
-
-#[get("/create/pages/<path..>")]
-pub fn edit_page_form(path: PathBuf, jar: &CookieJar<'_>) -> Template {
-    if !is_logged_in(jar) {
-       panic!("Not logged in.");
-    }
-
-    let page = path2page(&path);
-
-    // TODO get Nav element for a particular page function
-
-    todo!();
-
-    // Template::render("edit_page", context! {page: &child, nav: &nav_element, is_user: is_user, path: path, pageroot: pageroot}) // todo When logged in, expose buttons
 }

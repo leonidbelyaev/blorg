@@ -17,9 +17,10 @@ fn rocket() -> _ {
 
     rocket::build()
         .mount("/", routes![views::pages::get_page])
-        .mount("/", routes![views::pages::put_page_path])
         .mount("/", routes![views::pages::create_child_page])
         .mount("/", routes![views::pages::create_child_page_form])
+        .mount("/", routes![views::pages::edit_page_form])
+        .mount("/", routes![views::pages::edit_page])
         .mount("/", routes![views::pages::delete_page])
 
         .mount("/", routes![views::admins::authenticate_form])
