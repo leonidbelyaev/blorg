@@ -20,6 +20,7 @@ fn rocket() -> _ {
         .mount("/", routes![views::pages::put_page_path])
         .mount("/", routes![views::pages::create_child_page])
         .mount("/", routes![views::pages::create_child_page_form])
+        .mount("/", routes![views::pages::delete_page])
 
         .mount("/", routes![views::admins::authenticate_form])
         .mount("/", routes![views::admins::authenticate])

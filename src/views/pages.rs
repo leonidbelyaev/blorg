@@ -1,6 +1,7 @@
 use diesel::sql_types::{Text, Integer};
 use rocket::fs::NamedFile;
-use rocket::http::CookieJar;
+use rocket::http::{CookieJar, Status};
+use rocket::response::Redirect;
 use slugify::slugify;
 extern crate diesel;
 extern crate rocket;
@@ -10,7 +11,7 @@ use dotenvy::dotenv;
 use pandoc::{PandocOutput, PandocOption};
 use rocket::response::{status::Created, Debug};
 use rocket::serde::{json::Json, Deserialize, Serialize};
-use rocket::{get, post, put, FromForm};
+use rocket::{get, post, put, FromForm, delete};
 use crate::models::{self, AuthenticatedAdmin};
 use crate::schema;
 use rocket_dyn_templates::{context, Template};
@@ -22,6 +23,7 @@ use slab_tree::*;
 use models::Page;
 use crate::views::{establish_connection, is_logged_in};
 use rocket::form::Form;
+use rocket::uri;
 
 type Result<T, E = Debug<diesel::result::Error>> = std::result::Result<T, E>;
 
@@ -206,6 +208,26 @@ pub fn put_page_path(new_page: Json<NewPage>, path: PathBuf) -> Result<Created<J
     diesel::update(pages).filter(id.eq(child.id)).set(&put_page).execute(connection).expect("Failed to update page from path");
 
     Ok(Created::new("/").body(Json(put_page)))
+}
+
+#[get("/delete/pages/<path..>")]
+pub fn delete_page(path: PathBuf, admin: AuthenticatedAdmin) -> Redirect {
+    let connection = &mut establish_connection();
+    use self::models::Page;
+
+    use self::schema::pages::dsl::*;
+
+    let spath = format!("/{}", path.to_str().unwrap().to_string());
+    if spath == "/" {
+        panic!()
+    }
+    let page = path2page(&path);
+
+    diesel::delete(pages).filter(id.eq(page.id)).execute(connection).expect("Failed to delete page.");
+
+    let mut path = path.clone();
+    path.pop();
+    Redirect::to(uri!(get_page(path)))
 }
 
 #[post("/pages", format = "json", data = "<page>")]
