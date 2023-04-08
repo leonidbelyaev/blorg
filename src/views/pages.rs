@@ -113,8 +113,12 @@ pub fn get_page(path: PathBuf, jar: &CookieJar<'_>) -> Template {
 
     let mut tree_map = HashMap::new();
 
+
     for (ret_id, ret_parent_id, ret_slug) in tree_source {
-        if ret_parent_id == None {
+        if ret_slug == "" {
+            tree_map.insert(ret_id, root_id);
+        }
+        else if ret_parent_id == None {
             let mut root = tree.get_mut(root_id).unwrap();
             let slug_node = root.append(ret_slug);
 
@@ -131,7 +135,7 @@ pub fn get_page(path: PathBuf, jar: &CookieJar<'_>) -> Template {
         }
     }
 
-    println!("{:?}", &tree);
+    println!("{:#?}", &tree);
 
     // traverse tree to emit nav element
 
@@ -270,8 +274,10 @@ fn path2page(path: &PathBuf) -> Page {
            );
 "#
     );
-    println!("path spec is {:?}", path.to_str().unwrap().to_string());
-    let binding = query.bind::<Text, _>(path.to_str().unwrap().to_string()).load::<Page>(connection).expect("Database error finding page");
+    let path = path.to_str().unwrap().to_string();
+    let path_spec = if path != "" { format!("/{}", path) } else {path};
+    println!("path spec is {:?}", path_spec);
+    let binding = query.bind::<Text, _>(path_spec).load::<Page>(connection).expect("Database error finding page");
     let child = binding.first().expect("No such page found");
     println!("Child is: {:?}", child);
     child.clone()
