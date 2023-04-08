@@ -3,10 +3,10 @@
 {% block nav %}
 {% endblock nav %}
 
-{% block title %}Create User{% endblock title %}
+{% block title %}Authenticate as Admin{% endblock title %}
 
 {% block content %}
-<form action="http://localhost:8000/users/login" method="post">
+<form action="http://localhost:8000/admins/authenticate" method="post">
   <label for="username">Username</label>
   <input class="input" type="text" name="username">
   <label for="password">Password</label>

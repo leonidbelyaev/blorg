@@ -62,7 +62,8 @@ pub fn authenticate(admin_info: Form<AdminInfo>, jar: &CookieJar<'_>) -> Json<Op
                 username: admin_info.username.clone(),
                 password_hash: password_hashed,
             };
-            diesel::insert_into(admins).values(&new_user).execute(connection);
+            diesel::insert_into(admins).values(&new_user).execute(connection); // RETURNING user
+            // jar.add_private(Cookie::new("user_id", user.id.unwrap().to_string()));
             // register
             Json(None)
         }

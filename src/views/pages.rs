@@ -10,8 +10,8 @@ use dotenvy::dotenv;
 use pandoc::{PandocOutput, PandocOption};
 use rocket::response::{status::Created, Debug};
 use rocket::serde::{json::Json, Deserialize, Serialize};
-use rocket::{get, post, put};
-use crate::models;
+use rocket::{get, post, put, FromForm};
+use crate::models::{self, AuthenticatedAdmin};
 use crate::schema;
 use rocket_dyn_templates::{context, Template};
 use std::collections::HashMap;
@@ -21,14 +21,21 @@ use diesel::{prelude::*};
 use slab_tree::*;
 use models::Page;
 use crate::views::{establish_connection, is_logged_in};
+use rocket::form::Form;
 
 type Result<T, E = Debug<diesel::result::Error>> = std::result::Result<T, E>;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, FromForm)]
 pub struct NewPage {
     parent_id: Option<i32>,
     title: String,
     org_content: String,
+}
+
+#[derive(Serialize, Deserialize, FromForm)]
+pub struct ChildPage {
+    title: String,
+    html_content: String,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -54,27 +61,15 @@ fn org2html(org: String) -> String {
     }
 }
 
-#[post("/pages", format = "json", data = "<page>")]
-pub fn create_page_id(page: Json<NewPage>) -> Result<Created<Json<Page>>> {
-    use self::schema::pages::dsl::*;
-    use models::Page;
-    let connection = &mut establish_connection();
 
-    let new_page = Page {
-        id: None,
-        parent_id: page.parent_id,
-        title: page.title.to_string(),
-        slug: slugify!(&page.title.to_string()),
-        html_content: org2html(page.org_content.to_string()),
-    };
-diesel::insert_into(self::schema::pages::dsl::pages) .values(&new_page) .execute(connection)
-        .expect("Error saving new page");
 
-    Ok(Created::new("/").body(Json(new_page)))
+fn generate_nav() {
+// TODO store the tree as a state, update whenever we add or delete
+ todo!()
 }
 
-#[post("/pages/<path..>", format="json", data = "<page>")]
-pub fn create_page(page: Json<NewPage>, path: PathBuf) -> Result<Created<Json<Page>>> {
+#[post("/pages/<path..>", data = "<child_page>")]
+pub fn create_child_page(child_page: Form<ChildPage>, path: PathBuf, admin: AuthenticatedAdmin) -> Result<Created<Json<Page>>> {
     use models::Page;
     let connection = &mut establish_connection();
 
@@ -83,111 +78,22 @@ pub fn create_page(page: Json<NewPage>, path: PathBuf) -> Result<Created<Json<Pa
     let new_page = Page {
         id: None,
         parent_id: parent.id,
-        title: page.title.to_string(),
-        slug: slugify!(&page.title.to_string()),
-        html_content: org2html(page.org_content.to_string()),
+        title: child_page.title.to_string(),
+        slug: slugify!(&child_page.title.to_string()),
+        html_content: child_page.html_content.to_string(),
     };
 
     diesel::insert_into(self::schema::pages::dsl::pages) .values(&new_page) .execute(connection)
         .expect("Error saving new page");
 
-    Ok(Created::new("/").body(Json(new_page)))
-}
-
-#[put("/pages", format="json", data="<page>")]
-pub fn put_page_id(page: Json<UpdatePage>) -> Result<Created<Json<Page>>> {
-    use self::schema::pages::dsl::*;
-
-    let connection = &mut establish_connection();
-
-    let binding = pages.filter(id.eq(page.id)).load::<Page>(connection).unwrap();
-
-    let old_page = binding.first().unwrap();
-
-    let new_page = Page {
-        id: page.id,
-        parent_id: old_page.parent_id,
-        title: page.title.to_string(),
-        slug: slugify!(&page.title.to_string()),
-        html_content: org2html(page.org_content.to_string()),
-    }; // TODO explore changeset updatepage
-
-    diesel::update(pages).filter(id.eq(new_page.id)).set(&new_page).execute(connection).expect("Failed to meow meow meow");
-
-    Ok(Created::new("/").body(Json(new_page)))
-}
-
-#[put("/pages/<path..>", format="json", data="<new_page>")]
-pub fn put_page_path(new_page: Json<NewPage>, path: PathBuf) -> Result<Created<Json<Page>>> {
-    let connection = &mut establish_connection();
-    use self::models::Page;
-
-    use self::schema::pages::dsl::*;
-
-    let child = path2page(&path);
-
-    let put_page = Page {
-        id: child.id,
-        parent_id: child.parent_id,
-        title: new_page.title.to_string(),
-        slug: slugify!(&new_page.title.to_string()),
-        html_content: org2html(new_page.org_content.to_string())
-    };
-
-    diesel::update(pages).filter(id.eq(child.id)).set(&put_page).execute(connection).expect("Failed to update page from path");
-
-    Ok(Created::new("/").body(Json(put_page)))
-}
-
-fn path2page(path: &PathBuf) -> Page {
-    let connection = &mut establish_connection();
-    use self::models::Page;
-
-    use self::schema::pages::dsl::*;
-
-    let query = sql_query(
-        r#"
-             WITH RECURSIVE CTE AS (
-             SELECT id, slug AS path
-             FROM pages
-             WHERE parent_id IS NULL
-             UNION ALL
-             SELECT p.id, path || '/' || slug
-             FROM pages p
-             JOIN CTE ON p.parent_id = CTE.id
-           )
-           SELECT * FROM pages WHERE id = (
-           SELECT id FROM CTE WHERE path = ?
-           );
-"#
-    );
-    println!("path spec is {:?}", path.to_str().unwrap().to_string());
-    let binding = query.bind::<Text, _>(path.to_str().unwrap().to_string()).load::<Page>(connection).expect("Database error finding page");
-    let child = binding.first().expect("No such page found");
-    println!("Child is: {:?}", child);
-    child.clone()
+    Ok(Created::new("/").body(Json(new_page))) // TODO change this
 }
 
 #[get("/create/pages/<path..>")]
-pub fn edit_page_form(path: PathBuf, jar: &CookieJar<'_>) -> Template {
-    if !is_logged_in(jar) {
-       panic!("Not logged in.");
-    }
-
-    let page = path2page(&path);
-
-    // TODO get Nav element for a particular page function
-
-    todo!();
-
-    // Template::render("edit_page", context! {page: &child, nav: &nav_element, is_user: is_user, path: path, pageroot: pageroot}) // todo When logged in, expose buttons
+pub fn create_child_page_form(path: PathBuf, admin: AuthenticatedAdmin) -> Template {
+    Template::render("create_child_page_form", context!{path: path})
 }
 
-
-fn generate_nav() {
-// TODO store the tree as a state, update whenever we add or delete
- todo!()
-}
 
 #[get("/pages/<path..>")]
 pub fn get_page(path: PathBuf, jar: &CookieJar<'_>) -> Template {
@@ -276,3 +182,112 @@ pub fn get_page(path: PathBuf, jar: &CookieJar<'_>) -> Template {
     Template::render("page", context! {page: &child, nav: &nav_element, is_user: is_user, path: path, pageroot: pageroot}) // todo When logged in, expose buttons
 }
 
+#[put("/pages/<path..>", format="json", data="<new_page>")]
+pub fn put_page_path(new_page: Json<NewPage>, path: PathBuf) -> Result<Created<Json<Page>>> {
+    let connection = &mut establish_connection();
+    use self::models::Page;
+
+    use self::schema::pages::dsl::*;
+
+    let child = path2page(&path);
+
+    let put_page = Page {
+        id: child.id,
+        parent_id: child.parent_id,
+        title: new_page.title.to_string(),
+        slug: slugify!(&new_page.title.to_string()),
+        html_content: org2html(new_page.org_content.to_string())
+    };
+
+    diesel::update(pages).filter(id.eq(child.id)).set(&put_page).execute(connection).expect("Failed to update page from path");
+
+    Ok(Created::new("/").body(Json(put_page)))
+}
+
+#[post("/pages", format = "json", data = "<page>")]
+pub fn create_page_id(page: Json<NewPage>) -> Result<Created<Json<Page>>> {
+    use self::schema::pages::dsl::*;
+    use models::Page;
+    let connection = &mut establish_connection();
+
+    let new_page = Page {
+        id: None,
+        parent_id: page.parent_id,
+        title: page.title.to_string(),
+        slug: slugify!(&page.title.to_string()),
+        html_content: org2html(page.org_content.to_string()),
+    };
+diesel::insert_into(self::schema::pages::dsl::pages) .values(&new_page) .execute(connection)
+        .expect("Error saving new page");
+
+    Ok(Created::new("/").body(Json(new_page)))
+}
+
+
+#[put("/pages", format="json", data="<page>")]
+pub fn put_page_id(page: Json<UpdatePage>) -> Result<Created<Json<Page>>> {
+    use self::schema::pages::dsl::*;
+
+    let connection = &mut establish_connection();
+
+    let binding = pages.filter(id.eq(page.id)).load::<Page>(connection).unwrap();
+
+    let old_page = binding.first().unwrap();
+
+    let new_page = Page {
+        id: page.id,
+        parent_id: old_page.parent_id,
+        title: page.title.to_string(),
+        slug: slugify!(&page.title.to_string()),
+        html_content: org2html(page.org_content.to_string()),
+    }; // TODO explore changeset updatepage
+
+    diesel::update(pages).filter(id.eq(new_page.id)).set(&new_page).execute(connection).expect("Failed to meow meow meow");
+
+    Ok(Created::new("/").body(Json(new_page)))
+}
+
+
+fn path2page(path: &PathBuf) -> Page {
+    let connection = &mut establish_connection();
+    use self::models::Page;
+
+    use self::schema::pages::dsl::*;
+
+    let query = sql_query(
+        r#"
+             WITH RECURSIVE CTE AS (
+             SELECT id, slug AS path
+             FROM pages
+             WHERE parent_id IS NULL
+             UNION ALL
+             SELECT p.id, path || '/' || slug
+             FROM pages p
+             JOIN CTE ON p.parent_id = CTE.id
+           )
+           SELECT * FROM pages WHERE id = (
+           SELECT id FROM CTE WHERE path = ?
+           );
+"#
+    );
+    println!("path spec is {:?}", path.to_str().unwrap().to_string());
+    let binding = query.bind::<Text, _>(path.to_str().unwrap().to_string()).load::<Page>(connection).expect("Database error finding page");
+    let child = binding.first().expect("No such page found");
+    println!("Child is: {:?}", child);
+    child.clone()
+}
+
+#[get("/create/pages/<path..>")]
+pub fn edit_page_form(path: PathBuf, jar: &CookieJar<'_>) -> Template {
+    if !is_logged_in(jar) {
+       panic!("Not logged in.");
+    }
+
+    let page = path2page(&path);
+
+    // TODO get Nav element for a particular page function
+
+    todo!();
+
+    // Template::render("edit_page", context! {page: &child, nav: &nav_element, is_user: is_user, path: path, pageroot: pageroot}) // todo When logged in, expose buttons
+}
