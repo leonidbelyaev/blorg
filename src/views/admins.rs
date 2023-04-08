@@ -70,10 +70,10 @@ pub fn authenticate(admin_info: Form<AdminInfo>, jar: &CookieJar<'_>) -> Json<Op
     }
 }
 
-// #[post("/users/logout", format="json")]
-// pub fn logout(mut cookies: Cookies) -> () {
-//     cookies.remove_private(Cookie::named("user_id"));
-// }
+#[get("/admins/deauth")]
+pub fn deauth(cookies: &CookieJar<'_>) -> () {
+    cookies.remove_private(Cookie::named("user_id"));
+}
 
 fn hash_password(password: &String) -> String {
     let mut hasher = Sha3::sha3_256();

@@ -25,9 +25,8 @@ fn rocket() -> _ {
 
         .mount("/", routes![views::admins::authenticate_form])
         .mount("/", routes![views::admins::authenticate])
+        .mount("/", routes![views::admins::deauth])
 
-        .mount("/api/", routes![views::pages::put_page_id])
-        .mount("/api/", routes![views::pages::create_page_id])
         .mount("/", routes![views::files])
         .attach(Template::fairing())
 }

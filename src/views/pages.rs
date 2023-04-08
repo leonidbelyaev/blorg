@@ -211,28 +211,6 @@ pub fn edit_page_form(admin: AuthenticatedAdmin, path: PathBuf) -> Template {
     Template::render("edit_page_form", context!{page: page, path: path})
 }
 
-// #[put("/pages/<path..>", format="json", data="<new_page>")]
-// pub fn put_page_path(new_page: Json<NewPage>, path: PathBuf) -> Result<Created<Json<Page>>> {
-//     let connection = &mut establish_connection();
-//     use self::models::Page;
-
-//     use self::schema::pages::dsl::*;
-
-//     let child = path2page(&path);
-
-//     let put_page = Page {
-//         id: child.id,
-//         parent_id: child.parent_id,
-//         title: new_page.title.to_string(),
-//         slug: slugify!(&new_page.title.to_string()),
-//         html_content: org2html(new_page.org_content.to_string())
-//     };
-
-//     diesel::update(pages).filter(id.eq(child.id)).set(&put_page).execute(connection).expect("Failed to update page from path");
-
-//     Ok(Created::new("/").body(Json(put_page)))
-// }
-
 #[get("/delete/pages/<path..>")]
 pub fn delete_page(path: PathBuf, admin: AuthenticatedAdmin) -> Redirect {
     let connection = &mut establish_connection();
@@ -252,50 +230,6 @@ pub fn delete_page(path: PathBuf, admin: AuthenticatedAdmin) -> Redirect {
     path.pop();
     Redirect::to(uri!(get_page(path)))
 }
-
-#[post("/pages", format = "json", data = "<page>")]
-pub fn create_page_id(page: Json<NewPage>) -> Result<Created<Json<Page>>> {
-    use self::schema::pages::dsl::*;
-    use models::Page;
-    let connection = &mut establish_connection();
-
-    let new_page = Page {
-        id: None,
-        parent_id: page.parent_id,
-        title: page.title.to_string(),
-        slug: slugify!(&page.title.to_string()),
-        html_content: org2html(page.org_content.to_string()),
-    };
-diesel::insert_into(self::schema::pages::dsl::pages) .values(&new_page) .execute(connection)
-        .expect("Error saving new page");
-
-    Ok(Created::new("/").body(Json(new_page)))
-}
-
-
-#[put("/pages", format="json", data="<page>")]
-pub fn put_page_id(page: Json<UpdatePage>) -> Result<Created<Json<Page>>> {
-    use self::schema::pages::dsl::*;
-
-    let connection = &mut establish_connection();
-
-    let binding = pages.filter(id.eq(page.id)).load::<Page>(connection).unwrap();
-
-    let old_page = binding.first().unwrap();
-
-    let new_page = Page {
-        id: page.id,
-        parent_id: old_page.parent_id,
-        title: page.title.to_string(),
-        slug: slugify!(&page.title.to_string()),
-        html_content: org2html(page.org_content.to_string()),
-    }; // TODO explore changeset updatepage
-
-    diesel::update(pages).filter(id.eq(new_page.id)).set(&new_page).execute(connection).expect("Failed to meow meow meow");
-
-    Ok(Created::new("/").body(Json(new_page)))
-}
-
 
 fn path2page(path: &PathBuf) -> Page {
     let connection = &mut establish_connection();
