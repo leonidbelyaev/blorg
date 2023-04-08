@@ -5,24 +5,30 @@
     <title>{% block title %}{% endblock title %}</title>
 </head>
 <body>
-  <!-- TODO maybe if you scroll sufficiently far down the page, the selector bar fades out, and the article becomes centered -->
-    <header>
-        <a href="http://localhost:8000/pages/">
-        leonidb
-        <br/>
-        <small>
-        Leonid Belyaev
-        </small>
-        </a>
-    </header>
     <main>
-        {% block nav %}{% endblock nav %}
+    <header>
+        <div class="namebox">
+        <a href="/pages/">
+        leonid.belyaev.wiki
+        <br/>
+        </a>
+        </div>
+        <div class="quotebox">
+            containing no <br/> natural ingredients
+        </div>
+    </header>
+        <div class="foo">
         <article>
             {% block content %}{% endblock content %}
         </article>
-    </main>
-
+        {% block nav %}{% endblock nav %}
+        </div>
     <footer>
       Leonid Belyaev 2023
     </footer>
+    </main>
+    <a href="/admins/authenticate">
+    <div class="secret">
+    </div>
+    </a>
 </body>
