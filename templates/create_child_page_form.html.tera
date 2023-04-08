@@ -6,11 +6,12 @@
 {% block title %}Create Child Page{% endblock title %}
 
 {% block content %}
-<form action="http://localhost:8000/pages/{{ path }}" method="post">
+<form action="/pages/{{ path }}" method="post">
   <label for="title">Title</label>
   <input class="input" type="text" name="title">
-  <label for="html_content">HTML Content</label>
-  <input class="input" type="text" name="html_content">
+  <label for="markdown_content">Markdown Content</label>
+  <textarea name="markdown_content" rows="25" cols="80">
+  </textarea>
   <button>Create Child</button>
 </form>
 {% endblock content %}

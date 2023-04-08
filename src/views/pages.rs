@@ -24,6 +24,10 @@ use models::Page;
 use crate::views::{establish_connection, is_logged_in};
 use rocket::form::Form;
 use rocket::uri;
+use pulldown_cmark::{Parser, Options, html};
+use rocket::State;
+use crate::ManagedState;
+use rocket::fs::TempFile;
 
 type Result<T, E = Debug<diesel::result::Error>> = std::result::Result<T, E>;
 
@@ -37,7 +41,7 @@ pub struct NewPage {
 #[derive(Serialize, Deserialize, FromForm)]
 pub struct PageInfo {
     title: String,
-    html_content: String,
+    markdown_content: String,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -63,8 +67,15 @@ fn org2html(org: String) -> String {
     }
 }
 
+fn md2html(md: String, options: Options) -> String {
+    let parser = Parser::new_ext(&md, options);
+    let mut html_output = String::new();
+    html::push_html(&mut html_output, parser);
+    html_output
+}
+
 #[post("/pages/<path..>", data = "<child_page>")]
-pub fn create_child_page(child_page: Form<PageInfo>, path: PathBuf, admin: AuthenticatedAdmin) -> Result<Created<Json<Page>>> {
+pub fn create_child_page(state: &State<ManagedState>, child_page: Form<PageInfo>, path: PathBuf, admin: AuthenticatedAdmin) -> Result<Created<Json<Page>>> {
     use models::Page;
     let connection = &mut establish_connection();
 
@@ -75,7 +86,8 @@ pub fn create_child_page(child_page: Form<PageInfo>, path: PathBuf, admin: Authe
         parent_id: parent.id,
         title: child_page.title.to_string(),
         slug: slugify!(&child_page.title.to_string()),
-        html_content: child_page.html_content.to_string(),
+        html_content: md2html(child_page.markdown_content.clone(), state.parser_options),
+        markdown_content: child_page.markdown_content.clone()
     };
 
     diesel::insert_into(self::schema::pages::dsl::pages) .values(&new_page) .execute(connection)
@@ -89,6 +101,10 @@ pub fn create_child_page_form(path: PathBuf, admin: AuthenticatedAdmin) -> Templ
     Template::render("create_child_page_form", context!{path: path})
 }
 
+enum Padding {
+    Blank,
+    Bar
+}
 
 #[get("/pages/<path..>")]
 pub fn get_page(path: PathBuf, jar: &CookieJar<'_>) -> Template {
@@ -141,13 +157,26 @@ pub fn get_page(path: PathBuf, jar: &CookieJar<'_>) -> Template {
     segments.insert(0, ""); // root is on every path
 
     nav_element.push_str("<ul>");
-    process_node(&tree, root_id, root_id, &mut nav_element, acc_path, &mut segments);
+    process_node(&tree, root_id, root_id, &mut nav_element, acc_path, &mut segments, false, &mut Vec::new());
     nav_element.push_str("</ul>");
 
-
-    fn process_node(tree: &Tree<String>, current_node_id: NodeId, root_id: NodeId, nav_element: &mut String, acc_path: String, segments: &mut Vec<&str>) {
+    fn process_node(tree: &Tree<String>, current_node_id: NodeId, root_id: NodeId, nav_element: &mut String, acc_path: String, segments: &mut Vec<&str>, is_last_child: bool, prev: &mut Vec<Padding>) {
         let current_node = tree.get(current_node_id).unwrap();
         nav_element.push_str("<li>");
+        if !prev.is_empty() {
+            for i in 0..(prev.len()-1) {
+                match prev[i] {
+                    Padding::Blank => nav_element.push_str("&nbsp;&nbsp;&nbsp;"),
+                    Padding::Bar => nav_element.push_str("|&nbsp;&nbsp;")
+                }
+            }
+            if is_last_child {
+                nav_element.push_str("└──");
+            } else {
+                nav_element.push_str("├──");
+            }
+        }
+
         let children: Vec<NodeRef::<String>> = current_node.children().collect();
         let new_seg = if children.len() != 0 {
             format!("{}/", current_node.data())
@@ -161,10 +190,19 @@ pub fn get_page(path: PathBuf, jar: &CookieJar<'_>) -> Template {
             segments.remove(0);
             nav_element.push_str("<ul>");
 
-            for child in current_node.children() {
-                process_node(tree, child.node_id(), root_id, nav_element, new_path.clone(), segments);
-            }
+            let mut children = current_node.children().peekable();
 
+            while let Some(child) = children.next() {
+                if children.peek().is_some() {
+                    prev.push(Padding::Bar);
+                    process_node(tree, child.node_id(), root_id, nav_element, new_path.clone(), segments, false, prev);
+                    prev.pop();
+                } else {
+                    prev.push(Padding::Blank);
+                    process_node(tree, child.node_id(), root_id, nav_element, new_path.clone(), segments, true, prev);
+                    prev.pop();
+                }
+            }
             nav_element.push_str("</ul>");
         }
         nav_element.push_str("</li>");
@@ -182,7 +220,7 @@ pub fn get_page(path: PathBuf, jar: &CookieJar<'_>) -> Template {
 }
 
 #[post("/edit/pages/<path..>", data="<new_page>")]
-pub fn edit_page(new_page: Form<PageInfo>, path: PathBuf, admin: AuthenticatedAdmin) -> Redirect {
+pub fn edit_page(state: &State<ManagedState>, new_page: Form<PageInfo>, path: PathBuf, admin: AuthenticatedAdmin) -> Redirect {
     let connection = &mut establish_connection();
     use self::models::Page;
 
@@ -195,7 +233,8 @@ pub fn edit_page(new_page: Form<PageInfo>, path: PathBuf, admin: AuthenticatedAd
         parent_id: child.parent_id,
         title: new_page.title.to_string(),
         slug: slugify!(&new_page.title.to_string()),
-        html_content: new_page.html_content.to_string()
+        html_content: md2html(new_page.markdown_content.clone(), state.parser_options),
+        markdown_content: new_page.markdown_content.clone()
     };
 
     diesel::update(pages).filter(id.eq(child.id)).set(&put_page).execute(connection).expect("Failed to update page from path");
@@ -260,4 +299,25 @@ fn path2page(path: &PathBuf) -> Page {
     let child = binding.first().expect("No such page found");
     println!("Child is: {:?}", child);
     child.clone()
+}
+
+#[derive(FromForm)]
+pub struct Upload<'f> {
+    filename: String,
+    file: TempFile<'f>
+}
+
+#[post("/upload", data = "<form>")]
+pub async fn upload_file(mut form: Form<Upload<'_>>) -> std::io::Result<()> {
+
+    let filename = format!("./static/img/{}", form.filename);
+
+    form.file.copy_to(filename).await?;
+
+    Ok(())
+}
+
+#[get("/upload")]
+pub fn upload_file_form(admin: AuthenticatedAdmin) -> Template {
+    Template::render("upload_file_form", context!{})
 }

@@ -1,0 +1,16 @@
+{% extends "base" %}
+
+{% block nav %}
+{% endblock nav %}
+
+{% block title %}Upload File{% endblock title %}
+
+{% block content %}
+<form action="/upload" method="post" enctype="multipart/form-data">
+  <label for="filename">File Name</label>
+  <input class="input" type="text" name="filename">
+  <label for="file">File</label>
+  <input class="input" type="file" name="file">
+  <button>Upload File</button>
+</form>
+{% endblock content %}

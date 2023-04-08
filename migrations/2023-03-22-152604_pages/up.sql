@@ -4,5 +4,6 @@ CREATE TABLE pages (
   title TEXT NOT NULL,
   slug TEXT NOT NULL,
   html_content TEXT NOT NULL,
+  markdown_content TEXT NOT NULL,
   FOREIGN KEY(parent_id) REFERENCES pages(id) ON DELETE CASCADE
 )

@@ -9,8 +9,8 @@
 <form action="/edit/pages/{{ path }}" method="post">
   <label for="title">Title</label>
   <input class="input" type="text" name="title" value="{{ page.title }}">
-  <label for="html_content">HTML Content</label>
-  <input class="input" type="text" name="html_content" value="{{ page.html_content }}">
+  <label for="html_content">Markdown Content</label>
+  <textarea name="markdown_content" rows="25" cols="80">{{ page.markdown_content }}</textarea>
   <button>Edit Page</button>
 </form>
 {% endblock content %}

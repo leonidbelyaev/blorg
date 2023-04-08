@@ -51,17 +51,17 @@ header {
     border-bottom: 2px dotted black;
 }
 
-nav ul ul li:last-child:before {
-    position: relative;
-    left: -2px;
-    content:"└─";
-}
+/* nav ul ul li:last-child:before { */
+/*     position: relative; */
+/*     left: -2px; */
+/*     content:"└─"; */
+/* } */
 
-nav ul ul li::before {
-    position: relative;
-    left: -2px;
-    content:"├─";
-}
+/* nav ul ul li::before { */
+/*     position: relative; */
+/*     left: -2px; */
+/*     content:"├─"; */
+/* } */
 
 nav ul {
     padding: 0px;
@@ -77,6 +77,10 @@ nav ul {
 .quotebox {
     margin-left: auto;
     margin-right: 20px;
+}
+
+nav {
+    font-family: monospace;
 }
 
 

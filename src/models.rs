@@ -39,6 +39,8 @@ pub struct Page {
     pub slug: String,
     #[diesel(sql_type = Text)]
     pub html_content: String,
+    #[diesel(sql_type = Text)]
+    pub markdown_content: String,
 }
 
 #[derive(Queryable, QueryableByName, Insertable, AsChangeset, Serialize, Deserialize, Debug, Clone)]

@@ -15,6 +15,7 @@ diesel::table! {
         title -> Text,
         slug -> Text,
         html_content -> Text,
+        markdown_content -> Text,
     }
 }
 

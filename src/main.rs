@@ -5,15 +5,23 @@ use rocket_dyn_templates::{ Template };
 use slab_tree::tree::Tree;
 use crate::views::establish_connection;
 use diesel::{prelude::*};
+use pulldown_cmark::{Parser, Options, html};
 
 mod schema;
 mod models;
 mod views;
 
+pub struct ManagedState {
+        parser_options: Options
+}
+
 #[launch]
 fn rocket() -> _ {
 
         init_with_defaults();
+
+        let mut options = Options::empty();
+        options.insert(Options::ENABLE_STRIKETHROUGH);
 
     rocket::build()
         .mount("/", routes![views::pages::get_page])
@@ -22,12 +30,15 @@ fn rocket() -> _ {
         .mount("/", routes![views::pages::edit_page_form])
         .mount("/", routes![views::pages::edit_page])
         .mount("/", routes![views::pages::delete_page])
+        .mount("/", routes![views::pages::upload_file])
+        .mount("/", routes![views::pages::upload_file_form])
 
         .mount("/", routes![views::admins::authenticate_form])
         .mount("/", routes![views::admins::authenticate])
         .mount("/", routes![views::admins::deauth])
 
         .mount("/", routes![views::files])
+        .manage(ManagedState{parser_options: options})
         .attach(Template::fairing())
 }
 
@@ -44,7 +55,8 @@ fn init_with_defaults() {
                         parent_id: None,
                         title: "".to_string(),
                         slug: "".to_string(),
-                        html_content: "default root.".to_string()
+                        html_content: "default root.".to_string(),
+                        markdown_content: "default root.".to_string()
                 };
                 diesel::insert_into(pages::table).values(&default_root).execute(connection).unwrap();
         }
