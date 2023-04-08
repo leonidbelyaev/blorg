@@ -146,8 +146,8 @@ pub fn get_page(path: PathBuf, jar: &CookieJar<'_>) -> Template {
 
 
     fn process_node(tree: &Tree<String>, current_node_id: NodeId, root_id: NodeId, nav_element: &mut String, acc_path: String, segments: &mut Vec<&str>) {
-        nav_element.push_str("<li>");
         let current_node = tree.get(current_node_id).unwrap();
+        nav_element.push_str("<li>");
         let children: Vec<NodeRef::<String>> = current_node.children().collect();
         let new_seg = if children.len() != 0 {
             format!("{}/", current_node.data())
@@ -155,14 +155,16 @@ pub fn get_page(path: PathBuf, jar: &CookieJar<'_>) -> Template {
             format!("{}", current_node.data())
         };
         let new_path = format!("{}{}", acc_path, new_seg);
-        nav_element.push_str(format!("<a href=\"http://localhost:8000/pages{}\">{}</a>", new_path, new_seg).as_str());
+        nav_element.push_str(format!("<a href=\"/pages{}\">{}</a>", new_path, new_seg).as_str());
 
         if children.len() != 0 && segments.len() != 0 && current_node.data() == segments[0] {
             segments.remove(0);
             nav_element.push_str("<ul>");
+
             for child in current_node.children() {
                 process_node(tree, child.node_id(), root_id, nav_element, new_path.clone(), segments);
             }
+
             nav_element.push_str("</ul>");
         }
         nav_element.push_str("</li>");
@@ -176,9 +178,7 @@ pub fn get_page(path: PathBuf, jar: &CookieJar<'_>) -> Template {
 
     println!("{}", nav_element);
 
-    let pageroot = "http://localhost:8000";
-
-    Template::render("page", context! {page: &child, nav: &nav_element, is_user: is_user, path: path, pageroot: pageroot}) // todo When logged in, expose buttons
+    Template::render("page", context! {page: &child, nav: &nav_element, is_user: is_user, path: path})
 }
 
 #[post("/edit/pages/<path..>", data="<new_page>")]
