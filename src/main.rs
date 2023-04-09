@@ -53,7 +53,7 @@ fn init_with_defaults() {
                 let default_root = Page {
                         id: None,
                         parent_id: None,
-                        title: "".to_string(),
+                        title: "Root".to_string(),
                         slug: "".to_string(),
                         html_content: "default root.".to_string(),
                         markdown_content: "default root.".to_string()

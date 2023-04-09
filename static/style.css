@@ -111,6 +111,10 @@ main {
     background-color: white;
 }
 
+img {
+    width: 100%;
+}
+
 .secret {
     width: 20px;
     height: 20px;
