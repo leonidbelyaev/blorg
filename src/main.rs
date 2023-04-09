@@ -30,8 +30,8 @@ fn rocket() -> _ {
         .mount("/", routes![views::pages::edit_page_form])
         .mount("/", routes![views::pages::edit_page])
         .mount("/", routes![views::pages::delete_page])
-        .mount("/", routes![views::pages::upload_file])
-        .mount("/", routes![views::pages::upload_file_form])
+        .mount("/", routes![views::pages::upload_image])
+        .mount("/", routes![views::pages::upload_image_form])
 
         .mount("/", routes![views::admins::authenticate_form])
         .mount("/", routes![views::admins::authenticate])

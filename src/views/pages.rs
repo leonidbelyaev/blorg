@@ -1,4 +1,6 @@
 use diesel::sql_types::{Text, Integer};
+use image::imageops::{BiLevel, ColorMap};
+use image::io::Reader;
 use rocket::fs::NamedFile;
 use rocket::http::{CookieJar, Status};
 use rocket::response::Redirect;
@@ -28,6 +30,14 @@ use pulldown_cmark::{Parser, Options, html};
 use rocket::State;
 use crate::ManagedState;
 use rocket::fs::TempFile;
+use image::imageops::colorops::dither;
+use image::RgbImage;
+use image::{open, DynamicImage};
+use std::io::Cursor;
+use image::ImageFormat;
+use tempdir::TempDir;
+use std::fs::File;
+use std::io::{self, Write};
 
 type Result<T, E = Debug<diesel::result::Error>> = std::result::Result<T, E>;
 
@@ -304,20 +314,28 @@ fn path2page(path: &PathBuf) -> Page {
 #[derive(FromForm)]
 pub struct Upload<'f> {
     filename: String,
-    file: TempFile<'f>
+    image: TempFile<'f>
 }
 
-#[post("/upload", data = "<form>")]
-pub async fn upload_file(mut form: Form<Upload<'_>>) -> std::io::Result<()> {
+#[post("/upload/image", data = "<form>")]
+pub async fn upload_image(mut form: Form<Upload<'_>>) -> std::io::Result<()> {
 
-    let filename = format!("./static/img/{}", form.filename);
+    // hand is forced by https://github.com/SergioBenitez/Rocket/issues/2296 for now
 
-    form.file.copy_to(filename).await?;
+    let tmp_dir = TempDir::new("blorg")?;
+    let tmppath = tmp_dir.path().join(form.filename.clone());
+    form.image.move_copy_to(&tmppath).await;
+
+    let mut image = Reader::open(&tmppath)?.decode().unwrap().into_luma8();
+    dither(&mut image, &BiLevel);
+
+    let persist_path = format!("./static/img/runtime/{}", form.filename.clone());
+    image.save(persist_path);
 
     Ok(())
 }
 
-#[get("/upload")]
-pub fn upload_file_form(admin: AuthenticatedAdmin) -> Template {
-    Template::render("upload_file_form", context!{})
+#[get("/upload/image")]
+pub fn upload_image_form(admin: AuthenticatedAdmin) -> Template {
+    Template::render("upload_image_form", context!{})
 }

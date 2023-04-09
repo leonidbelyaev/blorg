@@ -6,11 +6,11 @@
 {% block title %}Upload File{% endblock title %}
 
 {% block content %}
-<form action="/upload" method="post" enctype="multipart/form-data">
+<form action="/upload/image" method="post" enctype="multipart/form-data">
   <label for="filename">File Name</label>
   <input class="input" type="text" name="filename">
-  <label for="file">File</label>
-  <input class="input" type="file" name="file">
-  <button>Upload File</button>
+  <label for="image">Image</label>
+  <input class="input" type="file" name="image">
+  <button>Upload Image</button>
 </form>
 {% endblock content %}
