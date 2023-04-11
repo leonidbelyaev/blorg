@@ -19,6 +19,7 @@ body {
 article {
     margin: 20px;
     flex: 4;
+    font-size: 16px;
 }
 
 h1 {
