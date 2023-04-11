@@ -6,6 +6,7 @@ use slab_tree::tree::Tree;
 use crate::views::establish_connection;
 use diesel::{prelude::*};
 use pulldown_cmark::{Parser, Options, html};
+use chrono::prelude::*;
 
 mod schema;
 mod models;
@@ -53,8 +54,12 @@ fn init_with_defaults() {
                 let default_root = Page {
                         id: None,
                         parent_id: None,
-                        title: "Root".to_string(),
+                        title: "".to_string(),
                         slug: "".to_string(),
+                        create_time: Utc::now().format("%Y-%m-%d").to_string(),
+                        update_time: None,
+                        sidebar_html_content: "default root.".to_string(),
+                        sidebar_markdown_content: "default root.".to_string(),
                         html_content: "default root.".to_string(),
                         markdown_content: "default root.".to_string()
                 };

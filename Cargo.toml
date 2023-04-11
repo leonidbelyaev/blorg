@@ -17,6 +17,7 @@ rust-crypto = "0.2.36"
 pulldown-cmark = "0.9.2"
 image = "0.24.6"
 tempdir = "0.3.7"
+chrono = "0.4.24"
 
 [dependencies.rocket_dyn_templates]
 features = ["tera"]

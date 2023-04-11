@@ -179,6 +179,7 @@ dependencies = [
 name = "blorg"
 version = "0.1.0"
 dependencies = [
+ "chrono",
  "diesel",
  "dotenvy",
  "image",
@@ -253,8 +254,11 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4e3c5919066adf22df73762e50cffcde3a758f2a848b113b586d1f86728b673b"
 dependencies = [
  "iana-time-zone",
+ "js-sys",
  "num-integer",
  "num-traits",
+ "time 0.1.45",
+ "wasm-bindgen",
  "winapi 0.3.9",
 ]
 

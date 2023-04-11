@@ -38,6 +38,7 @@ use image::ImageFormat;
 use tempdir::TempDir;
 use std::fs::File;
 use std::io::{self, Write};
+use chrono::prelude::*;
 
 type Result<T, E = Debug<diesel::result::Error>> = std::result::Result<T, E>;
 
@@ -52,6 +53,7 @@ pub struct NewPage {
 pub struct PageInfo {
     title: String,
     markdown_content: String,
+    sidebar_markdown_content: String,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -91,11 +93,17 @@ pub fn create_child_page(state: &State<ManagedState>, child_page: Form<PageInfo>
 
     let parent = path2page(&path);
 
+    let utc: DateTime<Utc> = Utc::now();
+
     let new_page = Page {
         id: None,
         parent_id: parent.id,
         title: child_page.title.to_string(),
         slug: slugify!(&child_page.title.to_string()),
+        create_time: utc.format("%Y-%m-%d").to_string(),
+        update_time: Some(utc.format("%Y-%m-%d").to_string()),
+        sidebar_html_content: md2html(child_page.sidebar_markdown_content.clone(), state.parser_options),
+        sidebar_markdown_content: child_page.sidebar_markdown_content.clone(),
         html_content: md2html(child_page.markdown_content.clone(), state.parser_options),
         markdown_content: child_page.markdown_content.clone()
     };
@@ -238,11 +246,22 @@ pub fn edit_page(state: &State<ManagedState>, new_page: Form<PageInfo>, path: Pa
 
     let child = path2page(&path);
 
+    let utc: DateTime<Utc> = Utc::now();
+
+    if child.title == "" {
+
+    }
+
+
     let put_page = Page {
         id: child.id,
         parent_id: child.parent_id,
-        title: new_page.title.to_string(),
-        slug: slugify!(&new_page.title.to_string()),
+        title: if child.title != "" { new_page.title.to_string()} else { "Root".to_string() },
+        create_time: child.create_time,
+        update_time: Some(utc.format("%Y-%m-%d").to_string()),
+        slug: if child.title != "" { slugify!(&new_page.title.to_string())} else { "".to_string() },
+        sidebar_html_content: md2html(new_page.sidebar_markdown_content.clone(), state.parser_options),
+        sidebar_markdown_content: new_page.sidebar_markdown_content.clone(),
         html_content: md2html(new_page.markdown_content.clone(), state.parser_options),
         markdown_content: new_page.markdown_content.clone()
     };

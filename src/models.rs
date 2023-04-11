@@ -38,9 +38,17 @@ pub struct Page {
     #[diesel(sql_type = Text)]
     pub slug: String,
     #[diesel(sql_type = Text)]
+    pub create_time: String,
+    #[diesel(sql_type = Nullable<Text>)]
+    pub update_time: Option<String>,
+    #[diesel(sql_type = Text)]
     pub html_content: String,
     #[diesel(sql_type = Text)]
     pub markdown_content: String,
+    #[diesel(sql_type = Text)]
+    pub sidebar_html_content: String,
+    #[diesel(sql_type = Text)]
+    pub sidebar_markdown_content: String,
 }
 
 #[derive(Queryable, QueryableByName, Insertable, AsChangeset, Serialize, Deserialize, Debug, Clone)]

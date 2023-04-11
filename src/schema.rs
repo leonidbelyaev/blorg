@@ -14,8 +14,12 @@ diesel::table! {
         parent_id -> Nullable<Integer>,
         title -> Text,
         slug -> Text,
+        create_time -> Text,
+        update_time -> Nullable<Text>,
         html_content -> Text,
         markdown_content -> Text,
+        sidebar_html_content -> Text,
+        sidebar_markdown_content -> Text,
     }
 }
 

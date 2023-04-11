@@ -1,16 +1,24 @@
 {% extends "base" %}
 
+<div class="sidebar">
 {% block nav %}
 {% endblock nav %}
+</div>
 
 {% block title %}Edit page{% endblock title %}
 
 {% block content %}
 <form action="/edit/pages/{{ path }}" method="post">
   <label for="title">Title</label>
+  {% if page.slug == "" %}
+  <input class="input" type="text" name="title" value="">
+  {% else %}
   <input class="input" type="text" name="title" value="{{ page.title }}">
-  <label for="html_content">Markdown Content</label>
+  {% endif %}
+  <label for="markdown_content">Markdown Content</label>
   <textarea name="markdown_content" rows="25" cols="80">{{ page.markdown_content }}</textarea>
+  <label for="sidebar_markdown_content">Sidebar Markdown Content</label>
+  <textarea name="sidebar_markdown_content" rows="25" cols="80">{{ page.sidebar_markdown_content }}</textarea>
   <button>Edit Page</button>
 </form>
 {% endblock content %}

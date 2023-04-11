@@ -9,19 +9,28 @@
     <header>
         <div class="namebox">
         <a href="/pages/">
-        leonid.belyaev.wiki
+                No Natural Ingredients
+            <br/>
+            <small>
+            nonating.net
+            </small>
         <br/>
         </a>
         </div>
         <div class="quotebox">
-            containing no <br/> natural ingredients
+            <small>
+            One Leonid Belyaev's personal blog
+            </small>
         </div>
     </header>
-        <div class="foo">
+        <div class="main-container">
         <article>
             {% block content %}{% endblock content %}
         </article>
+        <div class="sidebar">
         {% block nav %}{% endblock nav %}
+        {% block sidebar %}{% endblock sidebar %}
+        </div>
         </div>
     <footer>
       Leonid Belyaev 2023

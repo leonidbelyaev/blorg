@@ -95,13 +95,22 @@ body {
     margin: 20px auto;
 }
 
-nav {
+.sidebar {
     flex: 1;
     border-left: dotted black 2px;
+}
+
+.sidebar-content {
+    padding-left: 10px;
+    padding-right: 10px;
+}
+
+nav {
+    border-bottom: dotted black 2px;
     padding-left: 10px;
 }
 
-.foo {
+.main-container {
     display: flex;
     border-bottom: dotted 2px black;
 }
@@ -113,6 +122,10 @@ main {
 
 img {
     width: 100%;
+}
+
+.articleheader h1 {
+    margin: 0px;
 }
 
 .secret {
