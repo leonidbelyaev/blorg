@@ -1,0 +1,9 @@
+{% extends "base" %}
+
+{% block title %}Search Results{% endblock title %}
+
+{% block content %}
+{% for child in search_results %}
+{{ child.markdown_content }}
+{% endfor %}
+{% endblock content %}

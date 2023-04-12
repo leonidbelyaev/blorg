@@ -4,9 +4,9 @@ use rocket::{launch, routes};
 use rocket_dyn_templates::{ Template };
 use slab_tree::tree::Tree;
 use crate::views::establish_connection;
-use diesel::{prelude::*};
 use pulldown_cmark::{Parser, Options, html};
 use chrono::prelude::*;
+use diesel::{prelude::*, sql_query};
 
 mod schema;
 mod models;
@@ -33,6 +33,8 @@ fn rocket() -> _ {
         .mount("/", routes![views::pages::delete_page])
         .mount("/", routes![views::pages::upload_image])
         .mount("/", routes![views::pages::upload_image_form])
+
+        .mount("/", routes![views::pages::search_pages])
 
         .mount("/", routes![views::admins::authenticate_form])
         .mount("/", routes![views::admins::authenticate])
@@ -65,4 +67,19 @@ fn init_with_defaults() {
                 };
                 diesel::insert_into(pages::table).values(&default_root).execute(connection).unwrap();
         }
+
+        let query = sql_query(
+                r#"
+                CREATE VIRTUAL TABLE IF NOT EXISTS search USING FTS5(id, title, markdown_content, sidebar_markdown_content)
+                "#
+        ); // HACK we do this here because diesel does not support such sqlite virtual tables, which by definition have no explicit primary key.
+        query.execute(connection).expect("Database error");
+        let query = sql_query(
+                r#"
+                INSERT INTO search (id, title, markdown_content, sidebar_markdown_content)
+                SELECT id, title, markdown_content, sidebar_markdown_content FROM pages
+                "# // TODO load with redundancy - if ID matches, do not continue loading.
+                // OR, use in-memory table, to avoid decoherence issues.
+        );
+        query.execute(connection).expect("Database error");
 }

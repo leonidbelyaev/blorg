@@ -294,6 +294,32 @@ pub fn delete_page(path: PathBuf, admin: AuthenticatedAdmin) -> Redirect {
     Redirect::to(uri!(get_page(path)))
 }
 
+#[derive(QueryableByName, Debug, Serialize)]
+struct SearchResult {
+    #[diesel(sql_type = Text)]
+    markdown_content: String
+}
+
+#[get("/pages/search?<query>")]
+pub fn search_pages(query: &str) -> Template {
+    let connection = &mut establish_connection();
+    use self::models::Page;
+    use self::schema::pages::dsl::*;
+
+    let search_results = sql_query(
+        "SELECT highlight(search, 2, '<b>', '</b>') FROM search WHERE search MATCH ?"
+    ); // recall: id, title, markdown_content, sidebar_markdown_content. This is markdown_content highlighting.
+
+    // let binding = search_results.bind::<Text, _>(query).load::<SearchResult>(connection).expect("Database error");
+    let binding = search_results.bind::<Text, _>(query).load::<Vec<String>>(connection).expect("Database error");
+
+    for child in &binding {
+        println!("{:?}", child);
+    }
+
+    Template::render("search_results", context!{search_results: binding})
+}
+
 fn path2page(path: &PathBuf) -> Page {
     let connection = &mut establish_connection();
     use self::models::Page;
