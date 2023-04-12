@@ -6,7 +6,19 @@
 {% block title %}Authenticate as Admin{% endblock title %}
 
 {% block content %}
-<form action="http://localhost:8000/admins/authenticate" method="post">
+{% if is_empty %}
+<p>
+  No admins yet - authenticate to register.
+</p>
+{% endif %}
+{% if is_error %}
+<p>
+  <span style="color: red;">
+  Failed to authenticate.
+  </span>
+</p>
+{% endif %}
+<form action="/admins/authenticate" method="post">
   <label for="username">Username</label>
   <input class="input" type="text" name="username">
   <label for="password">Password</label>

@@ -248,11 +248,6 @@ pub fn edit_page(state: &State<ManagedState>, new_page: Form<PageInfo>, path: Pa
 
     let utc: DateTime<Utc> = Utc::now();
 
-    if child.title == "" {
-
-    }
-
-
     let put_page = Page {
         id: child.id,
         parent_id: child.parent_id,
