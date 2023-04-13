@@ -3,10 +3,11 @@ extern crate rocket;
 use rocket::{launch, routes};
 use rocket_dyn_templates::{ Template };
 use slab_tree::tree::Tree;
-use crate::views::establish_connection;
+use crate::views::{establish_connection, establish_memory_connection};
 use pulldown_cmark::{Parser, Options, html};
 use chrono::prelude::*;
 use diesel::{prelude::*, sql_query};
+use diesel::sql_types::{Text, Integer};
 
 mod schema;
 mod models;
@@ -46,8 +47,11 @@ fn rocket() -> _ {
 }
 
 fn init_with_defaults() {
- let connection = &mut establish_connection();
-    use self::models::Page;
+        let connection = &mut establish_connection();
+        let memory_connection = &mut establish_memory_connection();
+        use self::models::Page;
+
+        use self::schema::pages::dsl::*;
         use self::schema::pages;
 
         let page_count = pages::table.count().get_result::<i64>(connection).unwrap();
@@ -73,13 +77,19 @@ fn init_with_defaults() {
                 CREATE VIRTUAL TABLE IF NOT EXISTS search USING FTS5(id, title, markdown_content, sidebar_markdown_content)
                 "#
         ); // HACK we do this here because diesel does not support such sqlite virtual tables, which by definition have no explicit primary key.
-        query.execute(connection).expect("Database error");
-        let query = sql_query(
-                r#"
-                INSERT INTO search (id, title, markdown_content, sidebar_markdown_content)
-                SELECT id, title, markdown_content, sidebar_markdown_content FROM pages
-                "# // TODO load with redundancy - if ID matches, do not continue loading.
-                // OR, use in-memory table, to avoid decoherence issues.
-        );
-        query.execute(connection).expect("Database error");
+        query.execute(memory_connection).expect("Database error");
+
+        let all_pages = pages.load::<Page>(connection).expect("Database error");
+        for page in all_pages {
+                let query = sql_query(
+                        r#"
+                        INSERT INTO search (id, title, markdown_content, sidebar_markdown_content) VALUES (?, ?, ?, ?)
+                        "#
+                );
+                let binding = query.bind::<Integer, _>(page.id.unwrap())
+                        .bind::<Text, _>(page.title)
+                        .bind::<Text, _>(page.markdown_content)
+                        .bind::<Text, _>(page.sidebar_markdown_content);
+                binding.execute(memory_connection).expect("Database error");
+        }
 }

@@ -7,7 +7,7 @@ use rocket::response::Redirect;
 use slugify::slugify;
 extern crate diesel;
 extern crate rocket;
-use diesel::sqlite::SqliteConnection;
+use diesel::sqlite::{SqliteConnection, Sqlite};
 use diesel::{prelude::*, sql_query};
 use dotenvy::dotenv;
 use pandoc::{PandocOutput, PandocOption};
@@ -23,7 +23,7 @@ use diesel::sql_types::{Nullable};
 use diesel::{prelude::*};
 use slab_tree::*;
 use models::Page;
-use crate::views::{establish_connection, is_logged_in};
+use crate::views::{establish_connection, is_logged_in, establish_memory_connection};
 use rocket::form::Form;
 use rocket::uri;
 use pulldown_cmark::{Parser, Options, html};
@@ -39,6 +39,7 @@ use tempdir::TempDir;
 use std::fs::File;
 use std::io::{self, Write};
 use chrono::prelude::*;
+use diesel::row::Row;
 
 type Result<T, E = Debug<diesel::result::Error>> = std::result::Result<T, E>;
 
@@ -297,21 +298,25 @@ pub fn delete_page(path: PathBuf, admin: AuthenticatedAdmin) -> Redirect {
 #[derive(QueryableByName, Debug, Serialize)]
 struct SearchResult {
     #[diesel(sql_type = Text)]
-    markdown_content: String
+    text: String
 }
 
 #[get("/pages/search?<query>")]
 pub fn search_pages(query: &str) -> Template {
-    let connection = &mut establish_connection();
+    let memory_connection = &mut establish_memory_connection();
     use self::models::Page;
     use self::schema::pages::dsl::*;
 
+    let search_all = sql_query(r#"SELECT * from search"#);
+
+    search_all.execute(memory_connection).expect("Database error");
+
     let search_results = sql_query(
-        "SELECT highlight(search, 2, '<b>', '</b>') FROM search WHERE search MATCH ?"
+        r#"SELECT highlight(search, 2, '<b>', '</b>') AS "text" FROM search WHERE search MATCH ?"#
     ); // recall: id, title, markdown_content, sidebar_markdown_content. This is markdown_content highlighting.
 
     // let binding = search_results.bind::<Text, _>(query).load::<SearchResult>(connection).expect("Database error");
-    let binding = search_results.bind::<Text, _>(query).load::<Vec<String>>(connection).expect("Database error");
+    let binding = search_results.bind::<Text, _>(query).load::<SearchResult>(memory_connection).expect("Database error");
 
     for child in &binding {
         println!("{:?}", child);
