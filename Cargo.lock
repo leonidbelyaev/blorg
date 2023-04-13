@@ -188,6 +188,7 @@ dependencies = [
  "rocket 0.5.0-rc.3",
  "rocket_contrib",
  "rocket_dyn_templates",
+ "rocket_sync_db_pools",
  "rust-crypto",
  "serde",
  "slab_tree",
@@ -2316,6 +2317,31 @@ dependencies = [
  "time 0.3.20",
  "tokio",
  "uncased",
+]
+
+[[package]]
+name = "rocket_sync_db_pools"
+version = "0.1.0-rc.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f6b6bd8a6b33c305404653c05c02ab8fec86cb9e4739e5fd0d2284116e740d08"
+dependencies = [
+ "diesel",
+ "r2d2",
+ "rocket 0.5.0-rc.3",
+ "rocket_sync_db_pools_codegen",
+ "serde",
+ "tokio",
+ "version_check 0.9.4",
+]
+
+[[package]]
+name = "rocket_sync_db_pools_codegen"
+version = "0.1.0-rc.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dd26d72db34a46b182d79defd99dc5e40c2edb58651262e724d78ddcf1eb2474"
+dependencies = [
+ "devise 0.4.1",
+ "quote 1.0.26",
 ]
 
 [[package]]

@@ -15,7 +15,7 @@ use rocket::response::{status::Created, Debug};
 use rocket::serde::{json::Json, Deserialize, Serialize};
 use rocket::{get, post, put, FromForm, delete};
 use crate::models::{self, AuthenticatedAdmin};
-use crate::schema;
+use crate::{schema, PersistDatabase, MemoryDatabase};
 use rocket_dyn_templates::{context, Template};
 use std::collections::HashMap;
 use std::path::{PathBuf, Path};
@@ -23,7 +23,6 @@ use diesel::sql_types::{Nullable};
 use diesel::{prelude::*};
 use slab_tree::*;
 use models::Page;
-use crate::views::{establish_connection, is_logged_in, establish_memory_connection};
 use rocket::form::Form;
 use rocket::uri;
 use pulldown_cmark::{Parser, Options, html};
@@ -88,11 +87,10 @@ fn md2html(md: String, options: Options) -> String {
 }
 
 #[post("/pages/<path..>", data = "<child_page>")]
-pub fn create_child_page(state: &State<ManagedState>, child_page: Form<PageInfo>, path: PathBuf, admin: AuthenticatedAdmin) -> Result<Created<Json<Page>>> {
+pub async fn create_child_page(state: &State<ManagedState>, child_page: Form<PageInfo>, path: PathBuf, admin: AuthenticatedAdmin, connection: PersistDatabase) -> Result<Created<Json<Page>>> {
     use models::Page;
-    let connection = &mut establish_connection();
 
-    let parent = path2page(&path);
+    let parent = path2page(&path, &connection).await;
 
     let utc: DateTime<Utc> = Utc::now();
 
@@ -109,8 +107,12 @@ pub fn create_child_page(state: &State<ManagedState>, child_page: Form<PageInfo>
         markdown_content: child_page.markdown_content.clone()
     };
 
-    diesel::insert_into(self::schema::pages::dsl::pages) .values(&new_page) .execute(connection)
-        .expect("Error saving new page");
+    let to_insert = new_page.clone();
+
+    connection.run(
+        move |c| {
+            diesel::insert_into(self::schema::pages::dsl::pages).values(to_insert).execute(c).expect("Error saving new page")
+        }).await;
 
     Ok(Created::new("/").body(Json(new_page))) // TODO change this
 }
@@ -126,15 +128,18 @@ enum Padding {
 }
 
 #[get("/pages/<path..>")]
-pub fn get_page(path: PathBuf, jar: &CookieJar<'_>) -> Template {
-    let connection = &mut establish_connection();
+pub async fn get_page(path: PathBuf, jar: &CookieJar<'_>, connection: PersistDatabase) -> Template {
     use self::models::Page;
 
     use self::schema::pages::dsl::*;
 
-    let child = path2page(&path);
+    let child = path2page(&path, &connection).await;
 
-    let tree_source = pages.select((id, parent_id, slug)).load::<(Option<i32>, Option<i32>, String)>(connection).expect("Database error");
+    let tree_source = connection.run(
+        move |c| {
+            pages.select((id, parent_id, slug)).load::<(Option<i32>, Option<i32>, String)>(c).expect("Database error")
+        }
+    ).await;
 
     // build a tree structure
 
@@ -239,13 +244,12 @@ pub fn get_page(path: PathBuf, jar: &CookieJar<'_>) -> Template {
 }
 
 #[post("/edit/pages/<path..>", data="<new_page>")]
-pub fn edit_page(state: &State<ManagedState>, new_page: Form<PageInfo>, path: PathBuf, admin: AuthenticatedAdmin) -> Redirect {
-    let connection = &mut establish_connection();
+pub async fn edit_page(state: &State<ManagedState>, new_page: Form<PageInfo>, path: PathBuf, admin: AuthenticatedAdmin, connection: PersistDatabase) -> Redirect {
     use self::models::Page;
 
     use self::schema::pages::dsl::*;
 
-    let child = path2page(&path);
+    let child = path2page(&path, &connection).await;
 
     let utc: DateTime<Utc> = Utc::now();
 
@@ -262,22 +266,28 @@ pub fn edit_page(state: &State<ManagedState>, new_page: Form<PageInfo>, path: Pa
         markdown_content: new_page.markdown_content.clone()
     };
 
-    diesel::update(pages).filter(id.eq(child.id)).set(&put_page).execute(connection).expect("Failed to update page from path");
+    let to_update = put_page.clone();
+
+    connection.run(
+        move |c| {
+            diesel::update(pages).filter(id.eq(child.id)).set(&put_page).execute(c).expect("Failed to update page from path")
+        }
+    ).await;
+
 
     Redirect::to(uri!(get_page(path)))
 }
 
 
 #[get("/edit/pages/<path..>")]
-pub fn edit_page_form(admin: AuthenticatedAdmin, path: PathBuf) -> Template {
-    let page = path2page(&path);
+pub async fn edit_page_form(admin: AuthenticatedAdmin, path: PathBuf, connection: PersistDatabase) -> Template {
+    let page = path2page(&path, &connection).await;
 
     Template::render("edit_page_form", context!{page: page, path: path})
 }
 
 #[get("/delete/pages/<path..>")]
-pub fn delete_page(path: PathBuf, admin: AuthenticatedAdmin) -> Redirect {
-    let connection = &mut establish_connection();
+pub async fn delete_page(path: PathBuf, admin: AuthenticatedAdmin, connection: PersistDatabase) -> Redirect {
     use self::models::Page;
 
     use self::schema::pages::dsl::*;
@@ -286,9 +296,13 @@ pub fn delete_page(path: PathBuf, admin: AuthenticatedAdmin) -> Redirect {
     if spath == "/" {
         panic!()
     }
-    let page = path2page(&path);
+    let page = path2page(&path, &connection).await;
 
-    diesel::delete(pages).filter(id.eq(page.id)).execute(connection).expect("Failed to delete page.");
+    connection.run( move |c|
+        {
+            diesel::delete(pages).filter(id.eq(page.id)).execute(c).expect("Failed to delete page.")
+        }
+    ).await;
 
     let mut path = path.clone();
     path.pop();
@@ -302,21 +316,19 @@ struct SearchResult {
 }
 
 #[get("/pages/search?<query>")]
-pub fn search_pages(query: &str) -> Template {
-    let memory_connection = &mut establish_memory_connection();
+pub async fn search_pages(query: String, memory_connection: MemoryDatabase) -> Template {
     use self::models::Page;
     use self::schema::pages::dsl::*;
-
-    let search_all = sql_query(r#"SELECT * from search"#);
-
-    search_all.execute(memory_connection).expect("Database error");
 
     let search_results = sql_query(
         r#"SELECT highlight(search, 2, '<b>', '</b>') AS "text" FROM search WHERE search MATCH ?"#
     ); // recall: id, title, markdown_content, sidebar_markdown_content. This is markdown_content highlighting.
 
-    // let binding = search_results.bind::<Text, _>(query).load::<SearchResult>(connection).expect("Database error");
-    let binding = search_results.bind::<Text, _>(query).load::<SearchResult>(memory_connection).expect("Database error");
+    let binding = memory_connection.run(
+        move |c| {
+            search_results.bind::<Text, _>(query).load::<SearchResult>(c).expect("Database error")
+        }
+    ).await;
 
     for child in &binding {
         println!("{:?}", child);
@@ -325,10 +337,8 @@ pub fn search_pages(query: &str) -> Template {
     Template::render("search_results", context!{search_results: binding})
 }
 
-fn path2page(path: &PathBuf) -> Page {
-    let connection = &mut establish_connection();
+async fn path2page(path: &PathBuf, connection: &PersistDatabase) -> Page {
     use self::models::Page;
-
     use self::schema::pages::dsl::*;
 
     let query = sql_query(
@@ -350,7 +360,11 @@ fn path2page(path: &PathBuf) -> Page {
     let path = path.to_str().unwrap().to_string();
     let path_spec = if path != "" { format!("/{}", path) } else {path};
     println!("path spec is {:?}", path_spec);
-    let binding = query.bind::<Text, _>(path_spec).load::<Page>(connection).expect("Database error finding page");
+    let binding = connection.run(
+        move |c| {
+            query.bind::<Text, _>(path_spec).load::<Page>(c).expect("Database error finding page")
+        }
+    ).await;
     let child = binding.first().expect("No such page found");
     println!("Child is: {:?}", child);
     child.clone()

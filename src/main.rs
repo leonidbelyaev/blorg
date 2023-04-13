@@ -1,13 +1,14 @@
 #[macro_use] extern crate slugify;
 extern crate rocket;
+use rocket::fairing::AdHoc;
 use rocket::{launch, routes};
 use rocket_dyn_templates::{ Template };
 use slab_tree::tree::Tree;
-use crate::views::{establish_connection, establish_memory_connection};
 use pulldown_cmark::{Parser, Options, html};
 use chrono::prelude::*;
-use diesel::{prelude::*, sql_query};
+use rocket_sync_db_pools::{database, diesel};
 use diesel::sql_types::{Text, Integer};
+use diesel::{prelude::*, sql_query};
 
 mod schema;
 mod models;
@@ -17,10 +18,15 @@ pub struct ManagedState {
         parser_options: Options
 }
 
-#[launch]
-fn rocket() -> _ {
+#[database("persist_database")]
+pub struct PersistDatabase(diesel::SqliteConnection);
 
-        init_with_defaults();
+#[database("memory_database")]
+pub struct MemoryDatabase(diesel::SqliteConnection);
+
+#[launch]
+async fn rocket() -> _ {
+
 
         let mut options = Options::empty();
         options.insert(Options::ENABLE_STRIKETHROUGH);
@@ -44,17 +50,25 @@ fn rocket() -> _ {
         .mount("/", routes![views::files])
         .manage(ManagedState{parser_options: options})
         .attach(Template::fairing())
+        .attach(PersistDatabase::fairing())
+        .attach(MemoryDatabase::fairing())
+        .attach(AdHoc::on_liftoff("Init Databases", |rocket| {
+                Box::pin(async move {
+                        let db = PersistDatabase::get_one(rocket).await.unwrap();
+                        let memdb = MemoryDatabase::get_one(rocket).await.unwrap();
+                        init_with_defaults(db, memdb).await;
+                })
+        }))
 }
 
-fn init_with_defaults() {
-        let connection = &mut establish_connection();
-        let memory_connection = &mut establish_memory_connection();
+async fn init_with_defaults(connection: PersistDatabase, memory_connection: MemoryDatabase) {
         use self::models::Page;
 
         use self::schema::pages::dsl::*;
-        use self::schema::pages;
 
-        let page_count = pages::table.count().get_result::<i64>(connection).unwrap();
+        let page_count: i64 = connection.run(move |c| {
+                pages.count().get_result(c).unwrap()
+        }).await;
 
         if page_count == 0 {
                 let default_root = Page {
@@ -69,27 +83,44 @@ fn init_with_defaults() {
                         html_content: "default root.".to_string(),
                         markdown_content: "default root.".to_string()
                 };
-                diesel::insert_into(pages::table).values(&default_root).execute(connection).unwrap();
+                connection.run(
+                        move |c| {
+                                diesel::insert_into(pages).values(&default_root).execute(c).unwrap();
+                        }
+                ).await;
         }
 
-        let query = sql_query(
+        memory_connection.run(move |c| {
+         let query = sql_query(
                 r#"
                 CREATE VIRTUAL TABLE IF NOT EXISTS search USING FTS5(id, title, markdown_content, sidebar_markdown_content)
                 "#
         ); // HACK we do this here because diesel does not support such sqlite virtual tables, which by definition have no explicit primary key.
-        query.execute(memory_connection).expect("Database error");
+        query.execute(c).expect("Database error");
+        }
+        ).await;
 
-        let all_pages = pages.load::<Page>(connection).expect("Database error");
+
+        let all_pages = connection.run(
+                move |c| {
+                        pages.load::<Page>(c).expect("Database error")
+                }
+        ).await;
+
         for page in all_pages {
-                let query = sql_query(
-                        r#"
-                        INSERT INTO search (id, title, markdown_content, sidebar_markdown_content) VALUES (?, ?, ?, ?)
-                        "#
-                );
-                let binding = query.bind::<Integer, _>(page.id.unwrap())
-                        .bind::<Text, _>(page.title)
-                        .bind::<Text, _>(page.markdown_content)
-                        .bind::<Text, _>(page.sidebar_markdown_content);
-                binding.execute(memory_connection).expect("Database error");
+                memory_connection.run(
+                        move |c| {
+                                let query = sql_query(
+                                        r#"
+                                        INSERT INTO search (id, title, markdown_content, sidebar_markdown_content) VALUES (?, ?, ?, ?)
+                                        "#
+                                );
+                                let binding = query.bind::<Integer, _>(page.id.unwrap())
+                                        .bind::<Text, _>(page.title)
+                                        .bind::<Text, _>(page.markdown_content)
+                                        .bind::<Text, _>(page.sidebar_markdown_content);
+                                binding.execute(c).expect("Database error");
+                        }
+                ).await;
         }
 }

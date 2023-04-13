@@ -1,0 +1,5 @@
+[global.databases.persist_database]
+url = "./db/db.sqlite"
+
+[global.databases.memory_database]
+url = ":memory:"
