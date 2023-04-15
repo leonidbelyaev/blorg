@@ -42,11 +42,48 @@ use diesel::row::Row;
 
 type Result<T, E = Debug<diesel::result::Error>> = std::result::Result<T, E>;
 
-#[derive(Serialize, Deserialize, FromForm)]
-pub struct NewPage {
-    parent_id: Option<i32>,
+#[derive(QueryableByName, Debug, Serialize)]
+struct SearchResult {
+    #[diesel(sql_type = BigInt)]
+    id: i64,
+    #[diesel(sql_type = Text)]
     title: String,
-    org_content: String,
+    #[diesel(sql_type = Text)]
+    markdown_content: String,
+    #[diesel(sql_type = Text)]
+    sidebar_markdown_content: String,
+}
+
+#[derive(QueryableByName, Debug, Serialize)]
+struct QualifiedSearchResult {
+    #[diesel(sql_type = BigInt)]
+    id: i64,
+    #[diesel(sql_type = Text)]
+    title: String,
+    #[diesel(sql_type = Text)]
+    markdown_content: String,
+    #[diesel(sql_type = Text)]
+    sidebar_markdown_content: String,
+    #[diesel(sql_type = Text)]
+    strpath: String
+}
+
+enum Padding {
+    Blank,
+    Bar
+}
+
+#[derive(QueryableByName, Debug, Serialize)]
+struct StringContainer {
+    #[diesel(sql_type = Text)]
+    string: String
+}
+
+
+#[derive(FromForm)]
+pub struct Upload<'f> {
+    filename: String,
+    image: TempFile<'f>
 }
 
 #[derive(Serialize, Deserialize, FromForm)]
@@ -54,13 +91,6 @@ pub struct PageInfo {
     pub title: String,
     pub markdown_content: String,
     pub sidebar_markdown_content: String,
-}
-
-#[derive(Serialize, Deserialize)]
-pub struct UpdatePage {
-    id: Option<i32>,
-    title: String,
-    org_content: String,
 }
 
 fn org2html(org: String) -> String {
@@ -103,10 +133,6 @@ pub fn create_child_page_form(path: PathBuf, admin: AuthenticatedAdmin) -> Templ
     Template::render("create_child_page_form", context!{path: path})
 }
 
-enum Padding {
-    Blank,
-    Bar
-}
 
 #[get("/pages/<path..>")]
 pub async fn get_page(path: PathBuf, jar: &CookieJar<'_>, connection: PersistDatabase) -> Template {
@@ -277,31 +303,6 @@ pub async fn delete_page(path: PathBuf, admin: AuthenticatedAdmin, connection: P
     Redirect::to(uri!(get_page(path)))
 }
 
-#[derive(QueryableByName, Debug, Serialize)]
-struct SearchResult {
-    #[diesel(sql_type = BigInt)]
-    id: i64,
-    #[diesel(sql_type = Text)]
-    title: String,
-    #[diesel(sql_type = Text)]
-    markdown_content: String,
-    #[diesel(sql_type = Text)]
-    sidebar_markdown_content: String,
-}
-
-#[derive(QueryableByName, Debug, Serialize)]
-struct QualifiedSearchResult {
-    #[diesel(sql_type = BigInt)]
-    id: i64,
-    #[diesel(sql_type = Text)]
-    title: String,
-    #[diesel(sql_type = Text)]
-    markdown_content: String,
-    #[diesel(sql_type = Text)]
-    sidebar_markdown_content: String,
-    #[diesel(sql_type = Text)]
-    strpath: String
-}
 
 #[get("/search/pages?<query>")]
 pub async fn search_pages(query: String, memory_connection: MemoryDatabase, connection: PersistDatabase) -> Template {
@@ -341,11 +342,6 @@ pub async fn search_pages(query: String, memory_connection: MemoryDatabase, conn
     Template::render("search_results", context!{search_results: new_vec, search_term: query})
 }
 
-#[derive(QueryableByName, Debug, Serialize)]
-struct StringContainer {
-    #[diesel(sql_type = Text)]
-    string: String
-}
 
 async fn id2path(page_id: i64, connection: &PersistDatabase) -> String {
  use self::models::Page;
@@ -405,12 +401,6 @@ async fn path2page(path: &PathBuf, connection: &PersistDatabase) -> Page {
     let child = binding.first().expect("No such page found");
     println!("Child is: {:?}", child);
     child.clone()
-}
-
-#[derive(FromForm)]
-pub struct Upload<'f> {
-    filename: String,
-    image: TempFile<'f>
 }
 
 #[post("/upload/image", data = "<form>")]

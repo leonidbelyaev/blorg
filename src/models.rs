@@ -2,7 +2,6 @@ use crate::schema::pages;
 use crate::schema::admins;
 use chrono::Utc;
 use diesel::{prelude::*};
-use pulldown_cmark::Options;
 use serde::{Serialize, Deserialize};
 use diesel::sql_types::{Nullable, Integer, Text, Bool, Binary};
 use rocket::http::Status;
@@ -10,6 +9,8 @@ use crate::views::pages::PageInfo;
 use rocket::outcome::IntoOutcome;
 use rocket::request::{self, Request, FromRequest};
 use slugify::slugify;
+
+use pulldown_cmark::{Parser, Options, html};
 
 pub struct AuthenticatedAdmin {
     id: i32
