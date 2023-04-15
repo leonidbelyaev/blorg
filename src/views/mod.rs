@@ -1,14 +1,14 @@
-pub mod pages;
 pub mod admins;
+pub mod pages;
 
-use std::env;
-use diesel::{prelude::*};
+use diesel::prelude::*;
 use diesel::sqlite::SqliteConnection;
 use dotenvy::dotenv;
 use rocket::fs::NamedFile;
-use std::path::{Path, PathBuf};
-use rocket::{get, post, put};
 use rocket::http::CookieJar;
+use rocket::{get, post, put};
+use std::env;
+use std::path::{Path, PathBuf};
 
 // pub fn establish_connection() -> SqliteConnection {
 //     dotenv().ok();
@@ -21,7 +21,6 @@ use rocket::http::CookieJar;
 //     SqliteConnection::establish(":memory:")
 //         .unwrap_or_else(|_| panic!("Error connecting to in-memory DB."))
 // }
-
 
 #[get("/<file..>")] // HACK
 pub async fn files(file: PathBuf) -> Option<NamedFile> {

@@ -1,19 +1,19 @@
-use crate::schema::pages;
 use crate::schema::admins;
-use chrono::Utc;
-use diesel::{prelude::*};
-use serde::{Serialize, Deserialize};
-use diesel::sql_types::{Nullable, Integer, Text, Bool, Binary};
-use rocket::http::Status;
+use crate::schema::pages;
 use crate::views::pages::PageInfo;
+use chrono::Utc;
+use diesel::prelude::*;
+use diesel::sql_types::{Binary, Bool, Integer, Nullable, Text};
+use rocket::http::Status;
 use rocket::outcome::IntoOutcome;
-use rocket::request::{self, Request, FromRequest};
+use rocket::request::{self, FromRequest, Request};
+use serde::{Deserialize, Serialize};
 use slugify::slugify;
 
-use pulldown_cmark::{Parser, Options, html};
+use pulldown_cmark::{html, Options, Parser};
 
 pub struct AuthenticatedAdmin {
-    id: i32
+    id: i32,
 }
 
 #[rocket::async_trait]
@@ -21,10 +21,11 @@ impl<'r> FromRequest<'r> for AuthenticatedAdmin {
     type Error = std::convert::Infallible;
 
     async fn from_request(request: &'r Request<'_>) -> request::Outcome<Self, Self::Error> {
-        request.cookies()
+        request
+            .cookies()
             .get_private("user_id")
             .and_then(|c| c.value().parse().ok())
-            .map(|id| AuthenticatedAdmin{id})
+            .map(|id| AuthenticatedAdmin { id })
             .or_forward(())
     }
 }
@@ -36,7 +37,9 @@ fn md2html(md: String, options: Options) -> String {
     html_output
 }
 
-#[derive(Queryable, QueryableByName, Insertable, AsChangeset, Serialize, Deserialize, Debug, Clone)]
+#[derive(
+    Queryable, QueryableByName, Insertable, AsChangeset, Serialize, Deserialize, Debug, Clone,
+)]
 #[diesel(primary_key(id))]
 #[diesel(table_name = pages)]
 pub struct Page {
@@ -73,8 +76,11 @@ impl Page {
             update_time: Some(Utc::now().format("%Y-%m-%d").to_string()),
             html_content: md2html(page_info.markdown_content.clone(), parser_options),
             markdown_content: page_info.markdown_content.clone(),
-            sidebar_html_content: md2html(page_info.sidebar_markdown_content.clone(), parser_options),
-            sidebar_markdown_content: page_info.sidebar_markdown_content.clone()
+            sidebar_html_content: md2html(
+                page_info.sidebar_markdown_content.clone(),
+                parser_options,
+            ),
+            sidebar_markdown_content: page_info.sidebar_markdown_content.clone(),
         }
     }
 
@@ -88,15 +94,18 @@ impl Page {
             update_time: Some(Utc::now().format("%Y-%m-%d").to_string()),
             html_content: md2html(new_page_info.markdown_content.clone(), parser_options),
             markdown_content: new_page_info.markdown_content.clone(),
-            sidebar_html_content: md2html(new_page_info.sidebar_markdown_content.clone(), parser_options),
-            sidebar_markdown_content: new_page_info.sidebar_markdown_content.clone()
+            sidebar_html_content: md2html(
+                new_page_info.sidebar_markdown_content.clone(),
+                parser_options,
+            ),
+            sidebar_markdown_content: new_page_info.sidebar_markdown_content.clone(),
         }
     }
-
 }
 
-
-#[derive(Queryable, QueryableByName, Insertable, AsChangeset, Serialize, Deserialize, Debug, Clone)]
+#[derive(
+    Queryable, QueryableByName, Insertable, AsChangeset, Serialize, Deserialize, Debug, Clone,
+)]
 #[diesel(primary_key(id))]
 #[diesel(table_name = admins)]
 pub struct Admin {
