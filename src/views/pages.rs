@@ -312,21 +312,27 @@ pub async fn delete_page(path: PathBuf, admin: AuthenticatedAdmin, connection: P
 #[derive(QueryableByName, Debug, Serialize)]
 struct SearchResult {
     #[diesel(sql_type = Text)]
-    text: String
+    title: String,
+    #[diesel(sql_type = Text)]
+    markdown_content: String,
+    #[diesel(sql_type = Text)]
+    sidebar_markdown_content: String
 }
 
-#[get("/pages/search?<query>")]
+#[get("/search/pages?<query>")]
 pub async fn search_pages(query: String, memory_connection: MemoryDatabase) -> Template {
     use self::models::Page;
     use self::schema::pages::dsl::*;
 
     let search_results = sql_query(
-        r#"SELECT highlight(search, 2, '<b>', '</b>') AS "text" FROM search WHERE search MATCH ?"#
+        r#"SELECT snippet(search, 1, '<span class="highlight">', '</span>', '...', 64) AS "title", snippet(search, 2, '<span class="highlight">', '</span>', '...', 64) AS "markdown_content", snippet(search, 3, '<span class="highlight">', '</span>', '...', 64) AS "sidebar_markdown_content" FROM search WHERE search MATCH '{title markdown_content sidebar_markdown_content}: ' || ? "#
     ); // recall: id, title, markdown_content, sidebar_markdown_content. This is markdown_content highlighting.
+
+    let qclone = query.clone();
 
     let binding = memory_connection.run(
         move |c| {
-            search_results.bind::<Text, _>(query).load::<SearchResult>(c).expect("Database error")
+            search_results.bind::<Text, _>(qclone).load::<SearchResult>(c).expect("Database error")
         }
     ).await;
 
@@ -334,7 +340,7 @@ pub async fn search_pages(query: String, memory_connection: MemoryDatabase) -> T
         println!("{:?}", child);
     }
 
-    Template::render("search_results", context!{search_results: binding})
+    Template::render("search_results", context!{search_results: binding, search_term: query})
 }
 
 async fn path2page(path: &PathBuf, connection: &PersistDatabase) -> Page {

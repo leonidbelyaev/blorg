@@ -137,6 +137,38 @@ main {
     background-color: white;
 }
 
+.search-result {
+    margin: 20px;
+    border: 2px solid black;
+}
+
+.search-result .search-result-main {
+    display: flex;
+}
+
+.search-result-main-markdown {
+    flex: 4;
+    padding: 10px;
+}
+
+.search-result-main-sidebar-markdown {
+    border-left: 2px dotted black;
+    margin-left: auto;
+    padding: 10px;
+    flex: 1;
+}
+
+.search-result-title {
+    border-bottom: 2px dotted black;
+    padding: 10px;
+}
+
+.highlight {
+    background-color: yellow;
+    font-weight: bold;
+}
+
+
 img {
     width: 100%;
 }

@@ -3,7 +3,21 @@
 {% block title %}Search Results{% endblock title %}
 
 {% block content %}
+<h2>Search results for: "{{ search_term | safe}}"</h2>
+
 {% for child in search_results %}
-{{ child.markdown_content }}
+<div class='search-result'>
+  <div class='search-result-title'>
+<h3>{{ child.title | safe }}</h3>
+</div>
+<div class='search-result-main'>
+<div class='search-result-main-markdown'>
+{{ child.markdown_content | safe}}
+</div>
+<div class='search-result-main-sidebar-markdown'>
+{{ child.sidebar_markdown_content | safe}}
+</div>
+</div>
+</div>
 {% endfor %}
 {% endblock content %}
