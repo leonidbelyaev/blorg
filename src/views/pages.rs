@@ -1,4 +1,4 @@
-use diesel::sql_types::{Text, Integer};
+use diesel::sql_types::{Text, Integer, BigInt};
 use image::imageops::{BiLevel, ColorMap};
 use image::io::Reader;
 use rocket::fs::NamedFile;
@@ -311,22 +311,38 @@ pub async fn delete_page(path: PathBuf, admin: AuthenticatedAdmin, connection: P
 
 #[derive(QueryableByName, Debug, Serialize)]
 struct SearchResult {
+    #[diesel(sql_type = BigInt)]
+    id: i64,
     #[diesel(sql_type = Text)]
     title: String,
     #[diesel(sql_type = Text)]
     markdown_content: String,
     #[diesel(sql_type = Text)]
-    sidebar_markdown_content: String
+    sidebar_markdown_content: String,
+}
+
+#[derive(QueryableByName, Debug, Serialize)]
+struct QualifiedSearchResult {
+    #[diesel(sql_type = BigInt)]
+    id: i64,
+    #[diesel(sql_type = Text)]
+    title: String,
+    #[diesel(sql_type = Text)]
+    markdown_content: String,
+    #[diesel(sql_type = Text)]
+    sidebar_markdown_content: String,
+    #[diesel(sql_type = Text)]
+    strpath: String
 }
 
 #[get("/search/pages?<query>")]
-pub async fn search_pages(query: String, memory_connection: MemoryDatabase) -> Template {
+pub async fn search_pages(query: String, memory_connection: MemoryDatabase, connection: PersistDatabase) -> Template {
     use self::models::Page;
     use self::schema::pages::dsl::*;
 
     let search_results = sql_query(
-        r#"SELECT snippet(search, 1, '<span class="highlight">', '</span>', '...', 64) AS "title", snippet(search, 2, '<span class="highlight">', '</span>', '...', 64) AS "markdown_content", snippet(search, 3, '<span class="highlight">', '</span>', '...', 64) AS "sidebar_markdown_content" FROM search WHERE search MATCH '{title markdown_content sidebar_markdown_content}: ' || ? "#
-    ); // recall: id, title, markdown_content, sidebar_markdown_content. This is markdown_content highlighting.
+        r#"SELECT id, snippet(search, 1, '<span class="highlight">', '</span>', '...', 64) AS "title", snippet(search, 2, '<span class="highlight">', '</span>', '...', 64) AS "markdown_content", snippet(search, 3, '<span class="highlight">', '</span>', '...', 64) AS "sidebar_markdown_content" FROM search WHERE search MATCH '{title markdown_content sidebar_markdown_content}: ' || ? "#
+    );
 
     let qclone = query.clone();
 
@@ -336,11 +352,58 @@ pub async fn search_pages(query: String, memory_connection: MemoryDatabase) -> T
         }
     ).await;
 
+    // vector nonsense, bluh bluh
+
+    let mut new_vec = Vec::new();
+
     for child in &binding {
         println!("{:?}", child);
+        let strpath = id2path(child.id, &connection).await;
+        let qualified_child = QualifiedSearchResult {
+            id: child.id,
+            title: child.title.clone(),
+            markdown_content: child.markdown_content.clone(),
+            sidebar_markdown_content: child.sidebar_markdown_content.clone(),
+            strpath: strpath
+        };
+        new_vec.push(qualified_child);
     }
 
-    Template::render("search_results", context!{search_results: binding, search_term: query})
+
+    Template::render("search_results", context!{search_results: new_vec, search_term: query})
+}
+
+#[derive(QueryableByName, Debug, Serialize)]
+struct StringContainer {
+    #[diesel(sql_type = Text)]
+    string: String
+}
+
+async fn id2path(page_id: i64, connection: &PersistDatabase) -> String {
+ use self::models::Page;
+    use self::schema::pages::dsl::*;
+
+    let query = sql_query(
+        r#"
+             WITH RECURSIVE CTE AS (
+             SELECT id, slug AS path
+             FROM pages
+             WHERE parent_id IS NULL
+             UNION ALL
+             SELECT p.id, path || '/' || slug
+             FROM pages p
+             JOIN CTE ON p.parent_id = CTE.id
+           )
+           SELECT path AS "string" FROM CTE WHERE id = ?
+        "#);
+
+    let binding = connection.run(
+        move |c| {
+            query.bind::<BigInt, _>(page_id).load::<StringContainer>(c).expect("Database error")
+        }).await;
+    let strctr = binding.first().expect("Found no page with that id");
+
+    strctr.string.clone()
 }
 
 async fn path2page(path: &PathBuf, connection: &PersistDatabase) -> Page {
