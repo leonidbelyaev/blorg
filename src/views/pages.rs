@@ -51,9 +51,9 @@ pub struct NewPage {
 
 #[derive(Serialize, Deserialize, FromForm)]
 pub struct PageInfo {
-    title: String,
-    markdown_content: String,
-    sidebar_markdown_content: String,
+    pub title: String,
+    pub markdown_content: String,
+    pub sidebar_markdown_content: String,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -79,12 +79,6 @@ fn org2html(org: String) -> String {
     }
 }
 
-fn md2html(md: String, options: Options) -> String {
-    let parser = Parser::new_ext(&md, options);
-    let mut html_output = String::new();
-    html::push_html(&mut html_output, parser);
-    html_output
-}
 
 #[post("/pages/<path..>", data = "<child_page>")]
 pub async fn create_child_page(state: &State<ManagedState>, child_page: Form<PageInfo>, path: PathBuf, admin: AuthenticatedAdmin, connection: PersistDatabase) -> Result<Created<Json<Page>>> {
@@ -92,20 +86,7 @@ pub async fn create_child_page(state: &State<ManagedState>, child_page: Form<Pag
 
     let parent = path2page(&path, &connection).await;
 
-    let utc: DateTime<Utc> = Utc::now();
-
-    let new_page = Page {
-        id: None,
-        parent_id: parent.id,
-        title: child_page.title.to_string(),
-        slug: slugify!(&child_page.title.to_string()),
-        create_time: utc.format("%Y-%m-%d").to_string(),
-        update_time: Some(utc.format("%Y-%m-%d").to_string()),
-        sidebar_html_content: md2html(child_page.sidebar_markdown_content.clone(), state.parser_options),
-        sidebar_markdown_content: child_page.sidebar_markdown_content.clone(),
-        html_content: md2html(child_page.markdown_content.clone(), state.parser_options),
-        markdown_content: child_page.markdown_content.clone()
-    };
+    let new_page = Page::new(None, child_page.into_inner(), state.parser_options);
 
     let to_insert = new_page.clone();
 
@@ -251,20 +232,7 @@ pub async fn edit_page(state: &State<ManagedState>, new_page: Form<PageInfo>, pa
 
     let child = path2page(&path, &connection).await;
 
-    let utc: DateTime<Utc> = Utc::now();
-
-    let put_page = Page {
-        id: child.id,
-        parent_id: child.parent_id,
-        title: if child.title != "" { new_page.title.to_string()} else { "Root".to_string() },
-        create_time: child.create_time,
-        update_time: Some(utc.format("%Y-%m-%d").to_string()),
-        slug: if child.title != "" { slugify!(&new_page.title.to_string())} else { "".to_string() },
-        sidebar_html_content: md2html(new_page.sidebar_markdown_content.clone(), state.parser_options),
-        sidebar_markdown_content: new_page.sidebar_markdown_content.clone(),
-        html_content: md2html(new_page.markdown_content.clone(), state.parser_options),
-        markdown_content: new_page.markdown_content.clone()
-    };
+    let put_page = Page::edit(child.clone(), new_page.into_inner(), state.parser_options);
 
     let to_update = put_page.clone();
 
