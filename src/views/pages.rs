@@ -88,6 +88,7 @@ pub struct Upload<'f> {
 #[derive(Serialize, Deserialize, FromForm)]
 pub struct PageInfo {
     pub title: String,
+    pub slug: String,
     pub markdown_content: String,
     pub sidebar_markdown_content: String,
 }
@@ -314,9 +315,13 @@ pub async fn edit_page(
 
     let child = path2page(&path, &connection).await;
 
-    let put_page = Page::edit(child.clone(), new_page.into_inner(), state.parser_options);
+    let new_page = new_page.into_inner();
 
-    let to_update = put_page.clone();
+    let mut redirect_path = path.clone();
+    redirect_path.pop();
+    redirect_path.push(&new_page.slug);
+
+    let put_page = Page::edit(child.clone(), new_page, state.parser_options);
 
     connection
         .run(move |c| {
@@ -328,7 +333,7 @@ pub async fn edit_page(
         })
         .await;
 
-    Redirect::to(uri!(get_page(path)))
+    Redirect::to(uri!(get_page(redirect_path)))
 }
 
 #[get("/edit/pages/<path..>")]

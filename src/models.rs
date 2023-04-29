@@ -89,7 +89,7 @@ impl Page {
             id: page.id,
             parent_id: page.parent_id,
             title: new_page_info.title.clone(),
-            slug: slugify!(&new_page_info.title.clone()),
+            slug: new_page_info.slug.clone(),
             create_time: page.create_time,
             update_time: Some(Utc::now().format("%Y-%m-%d").to_string()),
             html_content: md2html(new_page_info.markdown_content.clone(), parser_options),

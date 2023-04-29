@@ -9,16 +9,22 @@
 
 {% block content %}
 <form action="/edit/pages/{{ path }}" method="post">
-  <label for="title">Title</label>
-  {% if page.slug == "" %}
-  <input class="input" type="text" name="title" value="">
-  {% else %}
+  <label for="title">Title:</label>
   <input class="input" type="text" name="title" value="{{ page.title }}">
-  {% endif %}
-  <label for="markdown_content">Markdown Content</label>
+  <label for="slug">Slug:</label>
+  <input class="input" type="text" name="slug" value="{{ page.slug }}">
+  <br>
+  <br>
+  <label for="markdown_content">Markdown Content:</label>
+  <br>
   <textarea name="markdown_content" rows="25" cols="80">{{ page.markdown_content }}</textarea>
-  <label for="sidebar_markdown_content">Sidebar Markdown Content</label>
+  <br>
+  <br>
+  <label for="sidebar_markdown_content">Sidebar Markdown Content:</label>
+  <br>
   <textarea name="sidebar_markdown_content" rows="25" cols="80">{{ page.sidebar_markdown_content }}</textarea>
+  <br>
+  <br>
   <button>Edit Page</button>
 </form>
 {% endblock content %}
