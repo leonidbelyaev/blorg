@@ -71,7 +71,7 @@ impl Page {
             id: None,
             parent_id: parent_id,
             title: page_info.title.clone(),
-            slug: slugify!(&page_info.title.clone()),
+            slug: page_info.slug.clone(),
             create_time: Utc::now().format("%Y-%m-%d").to_string(),
             update_time: Some(Utc::now().format("%Y-%m-%d").to_string()),
             html_content: md2html(page_info.markdown_content.clone(), parser_options),

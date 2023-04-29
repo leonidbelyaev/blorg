@@ -1,20 +1,13 @@
-{% extends "base" %}
+{% extends "page_form" %}
 
 {% block nav %}
 {% endblock nav %}
 
-{% block title %}Create Child Page{% endblock title %}
+{% block form_title %}{% endblock form_title %}
+{% block formslug %}{% endblock form_slug %}
+{% block formmarkdown_content %}{% endblock form_markdown_content %}
+{% block form_sidebar_markdown_content %}{% endblock form_sidebar_markdown_content %}
 
-{% block content %}
-<form action="/pages/{{ path }}" method="post">
-  <label for="title">Title</label>
-  <input class="input" type="text" name="title">
-  <label for="markdown_content">Markdown Content</label>
-  <textarea name="markdown_content" rows="25" cols="80">
-  </textarea>
-  <label for="sidebar_markdown_content">Sidebar Markdown Content</label>
-  <textarea name="sidebar_markdown_content" rows="25" cols="80">
-  </textarea>
-  <button>Create Child</button>
-</form>
-{% endblock content %}
+{% block title %}Create Child Page{% endblock title %}
+{% block action %}Create Child Page{% endblock action %}
+{% block url %}/pages/{{ path }}{% endblock action %}

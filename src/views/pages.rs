@@ -125,7 +125,7 @@ pub async fn create_child_page(
 
     let parent = path2page(&path, &connection).await;
 
-    let new_page = Page::new(None, child_page.into_inner(), state.parser_options);
+    let new_page = Page::new(parent.id, child_page.into_inner(), state.parser_options);
 
     let to_insert = new_page.clone();
 
