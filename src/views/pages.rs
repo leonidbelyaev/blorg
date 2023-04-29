@@ -120,25 +120,46 @@ pub async fn create_child_page(
     path: PathBuf,
     admin: AuthenticatedAdmin,
     connection: PersistDatabase,
-) -> Result<Created<Json<Page>>> {
+    memory_connection: MemoryDatabase,
+) -> Redirect {
     use models::Page;
 
     let parent = path2page(&path, &connection).await;
 
-    let new_page = Page::new(parent.id, child_page.into_inner(), state.parser_options);
+    let child_page = child_page.into_inner();
+
+    let mut child_path = path.clone();
+    child_path.push(&child_page.slug);
+
+    let new_page = Page::new(parent.id, child_page, state.parser_options);
 
     let to_insert = new_page.clone();
+
+    memory_connection
+        .run(move |c| {
+            let query = sql_query(
+                    r#"
+                    INSERT INTO search (id, title, markdown_content, sidebar_markdown_content) VALUES (?, ?, ?, ?)
+                    "#
+            );
+            let binding = query.bind::<Integer, _>(to_insert.id.unwrap())
+                    .bind::<Text, _>(to_insert.title)
+                    .bind::<Text, _>(to_insert.markdown_content)
+                    .bind::<Text, _>(to_insert.sidebar_markdown_content);
+            binding.execute(c).expect("Database error");
+        }).await;
+
 
     connection
         .run(move |c| {
             diesel::insert_into(self::schema::pages::dsl::pages)
-                .values(to_insert)
+                .values(new_page)
                 .execute(c)
                 .expect("Error saving new page")
         })
         .await;
 
-    Ok(Created::new("/").body(Json(new_page))) // TODO change this
+    Redirect::to(uri!(get_page(child_path)))
 }
 
 #[get("/create/pages/<path..>")]
