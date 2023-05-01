@@ -44,8 +44,10 @@ type Result<T, E = Debug<diesel::result::Error>> = std::result::Result<T, E>;
 
 #[derive(QueryableByName, Debug, Serialize)]
 struct SearchResult {
-    #[diesel(sql_type = BigInt)]
-    id: i64,
+    #[diesel(sql_type = Nullable<Integer>)]
+    id: Option<i32>,
+    #[diesel(sql_type = Text)]
+    path: String,
     #[diesel(sql_type = Text)]
     title: String,
     #[diesel(sql_type = Text)]
@@ -135,20 +137,22 @@ pub async fn create_child_page(
 
     let to_insert = new_page.clone();
 
+    let cloned_path = child_path.clone();
+
     memory_connection
         .run(move |c| {
             let query = sql_query(
                     r#"
-                    INSERT INTO search (id, title, markdown_content, sidebar_markdown_content) VALUES (?, ?, ?, ?)
+                    INSERT INTO search (id, path, title, markdown_content, sidebar_markdown_content) VALUES (?, ?, ?, ?, ?)
                     "#
             );
-            let binding = query.bind::<Integer, _>(to_insert.id.unwrap())
+            let binding = query.bind::<Nullable<Integer>, _>(None::<i32>)
+                    .bind::<Text, _>(cloned_path.display().to_string())
                     .bind::<Text, _>(to_insert.title)
                     .bind::<Text, _>(to_insert.markdown_content)
                     .bind::<Text, _>(to_insert.sidebar_markdown_content);
             binding.execute(c).expect("Database error");
         }).await;
-
 
     connection
         .run(move |c| {
@@ -408,7 +412,7 @@ pub async fn search_pages(
     use self::schema::pages::dsl::*;
 
     let search_results = sql_query(
-        r#"SELECT id, snippet(search, 1, '<span class="highlight">', '</span>', '...', 64) AS "title", snippet(search, 2, '<span class="highlight">', '</span>', '...', 64) AS "markdown_content", snippet(search, 3, '<span class="highlight">', '</span>', '...', 64) AS "sidebar_markdown_content" FROM search WHERE search MATCH '{title markdown_content sidebar_markdown_content}: ' || ? "#,
+        r#"SELECT id, path, snippet(search, 2, '<span class="highlight">', '</span>', '...', 64) AS "title", snippet(search, 3, '<span class="highlight">', '</span>', '...', 64) AS "markdown_content", snippet(search, 4, '<span class="highlight">', '</span>', '...', 64) AS "sidebar_markdown_content" FROM search WHERE search MATCH '{title markdown_content sidebar_markdown_content}: ' || ? "#,
     );
 
     let qclone = query.clone();
@@ -422,26 +426,9 @@ pub async fn search_pages(
         })
         .await;
 
-    // vector nonsense, bluh bluh
-
-    let mut new_vec = Vec::new();
-
-    for child in &binding {
-        println!("{:?}", child);
-        let strpath = id2path(child.id, &connection).await;
-        let qualified_child = QualifiedSearchResult {
-            id: child.id,
-            title: child.title.clone(),
-            markdown_content: child.markdown_content.clone(),
-            sidebar_markdown_content: child.sidebar_markdown_content.clone(),
-            strpath: strpath,
-        };
-        new_vec.push(qualified_child);
-    }
-
     Template::render(
         "search_results",
-        context! {search_results: new_vec, search_term: query},
+        context! {search_results: binding, search_term: query},
     )
 }
 

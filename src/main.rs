@@ -2,13 +2,14 @@
 extern crate slugify;
 extern crate rocket;
 use chrono::prelude::*;
-use diesel::sql_types::{Integer, Text};
+use diesel::sql_types::{Integer, Nullable, Text};
 use diesel::{prelude::*, sql_query};
 use pulldown_cmark::{html, Options, Parser};
 use rocket::fairing::AdHoc;
 use rocket::{launch, routes};
 use rocket_dyn_templates::Template;
 use rocket_sync_db_pools::{database, diesel};
+use serde::{Deserialize, Serialize};
 use slab_tree::tree::Tree;
 
 mod models;
@@ -17,6 +18,20 @@ mod views;
 
 pub struct ManagedState {
     parser_options: Options,
+}
+
+#[derive(Queryable, QueryableByName, Serialize, Deserialize, Debug, Clone)]
+pub struct SearchablePage {
+    #[diesel(sql_type = Nullable<Integer>)]
+    pub id: Option<i32>,
+    #[diesel(sql_type = Text)]
+    pub path: String,
+    #[diesel(sql_type = Text)]
+    pub title: String,
+    #[diesel(sql_type = Text)]
+    pub markdown_content: String,
+    #[diesel(sql_type = Text)]
+    pub sidebar_markdown_content: String,
 }
 
 #[database("persist_database")]
@@ -94,29 +109,45 @@ async fn init_with_defaults(connection: PersistDatabase, memory_connection: Memo
     memory_connection.run(move |c| {
          let query = sql_query(
                 r#"
-                CREATE VIRTUAL TABLE IF NOT EXISTS search USING FTS5(id, title, markdown_content, sidebar_markdown_content)
+                CREATE VIRTUAL TABLE IF NOT EXISTS search USING FTS5(id, path, title, markdown_content, sidebar_markdown_content)
                 "#
         ); // HACK we do this here because diesel does not support such sqlite virtual tables, which by definition have no explicit primary key.
         query.execute(c).expect("Database error");
         }
         ).await;
 
-    let all_pages = connection
-        .run(move |c| pages.load::<Page>(c).expect("Database error"))
+    let query = sql_query(
+        r#"
+             WITH RECURSIVE CTE AS (
+             SELECT id, slug AS path, title, markdown_content, sidebar_markdown_content
+             FROM pages
+             WHERE parent_id IS NULL
+             UNION ALL
+             SELECT p.id, path || '/' || slug, p.title, p.markdown_content, p.sidebar_markdown_content
+             FROM pages p
+             JOIN CTE ON p.parent_id = CTE.id
+           )
+           SELECT * FROM CTE
+"#,
+    );
+
+    let binding = connection
+        .run(move |c| query.load::<SearchablePage>(c).expect("Database error"))
         .await;
 
-    for page in all_pages {
+    for searchable_page in binding {
         memory_connection.run(
                         move |c| {
                                 let query = sql_query(
                                         r#"
-                                        INSERT INTO search (id, title, markdown_content, sidebar_markdown_content) VALUES (?, ?, ?, ?)
+                                        INSERT INTO search (id, path, title, markdown_content, sidebar_markdown_content) VALUES (?, ?, ?, ?, ?)
                                         "#
                                 );
-                                let binding = query.bind::<Integer, _>(page.id.unwrap())
-                                        .bind::<Text, _>(page.title)
-                                        .bind::<Text, _>(page.markdown_content)
-                                        .bind::<Text, _>(page.sidebar_markdown_content);
+                                let binding = query.bind::<Integer, _>(searchable_page.id.unwrap())
+                                    .bind::<Text, _>(searchable_page.path)
+                                        .bind::<Text, _>(searchable_page.title)
+                                        .bind::<Text, _>(searchable_page.markdown_content)
+                                        .bind::<Text, _>(searchable_page.sidebar_markdown_content);
                                 binding.execute(c).expect("Database error");
                         }
                 ).await;
