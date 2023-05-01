@@ -76,6 +76,12 @@ enum Padding {
 }
 
 #[derive(QueryableByName, Debug, Serialize)]
+struct IntegerContainer {
+    #[diesel(sql_type = Nullable<Integer>)]
+    int: Option<i32>,
+}
+
+#[derive(QueryableByName, Debug, Serialize)]
 struct StringContainer {
     #[diesel(sql_type = Text)]
     string: String,
@@ -87,7 +93,7 @@ pub struct Upload<'f> {
     image: TempFile<'f>,
 }
 
-#[derive(Serialize, Deserialize, FromForm)]
+#[derive(Serialize, Deserialize, FromForm, Clone)]
 pub struct PageInfo {
     pub title: String,
     pub slug: String,
@@ -124,6 +130,7 @@ pub async fn create_child_page(
     connection: PersistDatabase,
     memory_connection: MemoryDatabase,
 ) -> Redirect {
+    use self::schema::pages::dsl::*;
     use models::Page;
 
     let parent = path2page(&path, &connection).await;
@@ -139,21 +146,6 @@ pub async fn create_child_page(
 
     let cloned_path = child_path.clone();
 
-    memory_connection
-        .run(move |c| {
-            let query = sql_query(
-                    r#"
-                    INSERT INTO search (id, path, title, markdown_content, sidebar_markdown_content) VALUES (?, ?, ?, ?, ?)
-                    "#
-            );
-            let binding = query.bind::<Nullable<Integer>, _>(None::<i32>)
-                    .bind::<Text, _>(cloned_path.display().to_string())
-                    .bind::<Text, _>(to_insert.title)
-                    .bind::<Text, _>(to_insert.markdown_content)
-                    .bind::<Text, _>(to_insert.sidebar_markdown_content);
-            binding.execute(c).expect("Database error");
-        }).await;
-
     connection
         .run(move |c| {
             diesel::insert_into(self::schema::pages::dsl::pages)
@@ -162,6 +154,32 @@ pub async fn create_child_page(
                 .expect("Error saving new page")
         })
         .await;
+
+    // HACK: We do this because the diesel sqlite backend does not support RETURNING clauses
+    let page_id: Option<i32> = connection
+        .run(move |c| {
+            let query = sql_query("SELECT last_insert_rowid() AS int");
+            let binding = query.load::<IntegerContainer>(c).expect("Database error");
+            binding.first().expect("Database error").int
+        })
+        .await;
+
+    println!("{:?}", page_id);
+
+    memory_connection
+        .run(move |c| {
+            let query = sql_query(
+                    r#"
+                    INSERT INTO search (id, path, title, markdown_content, sidebar_markdown_content) VALUES (?, ?, ?, ?, ?)
+                    "#
+            );
+            let binding = query.bind::<Nullable<Integer>, _>(page_id)
+                    .bind::<Text, _>(cloned_path.display().to_string())
+                    .bind::<Text, _>(to_insert.title)
+                    .bind::<Text, _>(to_insert.markdown_content)
+                    .bind::<Text, _>(to_insert.sidebar_markdown_content);
+            binding.execute(c).expect("Database error");
+        }).await;
 
     Redirect::to(uri!(get_page(child_path)))
 }
@@ -333,6 +351,7 @@ pub async fn edit_page(
     path: PathBuf,
     admin: AuthenticatedAdmin,
     connection: PersistDatabase,
+    memory_connection: MemoryDatabase,
 ) -> Redirect {
     use self::models::Page;
 
@@ -342,9 +361,13 @@ pub async fn edit_page(
 
     let new_page = new_page.into_inner();
 
+    let mem_page = new_page.clone();
+
     let mut redirect_path = path.clone();
     redirect_path.pop();
     redirect_path.push(&new_page.slug);
+
+    let mem_path = redirect_path.clone();
 
     let put_page = Page::edit(child.clone(), new_page, state.parser_options);
 
@@ -357,6 +380,18 @@ pub async fn edit_page(
                 .expect("Failed to update page from path")
         })
         .await;
+
+    memory_connection
+        .run(move |c| {
+	    let query = sql_query("UPDATE search SET path=?, title=?, markdown_content=?, sidebar_markdown_content=? WHERE id = ?");
+	    query
+        .bind::<Text, _>(mem_path.display().to_string())
+        .bind::<Text, _>(mem_page.title.clone())
+        .bind::<Text, _>(mem_page.markdown_content.clone())
+        .bind::<Text, _>(mem_page.sidebar_markdown_content.clone())
+        .bind::<Nullable<Integer>, _>(child.id)
+        .execute(c).expect("Database error");
+	}).await;
 
     Redirect::to(uri!(get_page(redirect_path)))
 }
