@@ -412,6 +412,7 @@ pub async fn delete_page(
     path: PathBuf,
     admin: AuthenticatedAdmin,
     connection: PersistDatabase,
+    memory_connection: MemoryDatabase,
 ) -> Redirect {
     use self::models::Page;
 
@@ -429,6 +430,16 @@ pub async fn delete_page(
                 .filter(id.eq(page.id))
                 .execute(c)
                 .expect("Failed to delete page.")
+        })
+        .await;
+
+    memory_connection
+        .run(move |c| {
+            let query = sql_query("DELETE FROM search WHERE id = ?");
+            query
+                .bind::<Nullable<Integer>, _>(page.id)
+                .execute(c)
+                .expect("Database error");
         })
         .await;
 
