@@ -9,6 +9,16 @@ diesel::table! {
 }
 
 diesel::table! {
+    page_revision (id) {
+        id -> Nullable<Integer>,
+        page_id -> Nullable<Integer>,
+        time -> Nullable<Text>,
+        markdown_content -> Nullable<Text>,
+        sidebar_markdown_content -> Nullable<Text>,
+    }
+}
+
+diesel::table! {
     pages (id) {
         id -> Nullable<Integer>,
         parent_id -> Nullable<Integer>,
@@ -23,4 +33,8 @@ diesel::table! {
     }
 }
 
-diesel::allow_tables_to_appear_in_same_query!(admins, pages,);
+diesel::allow_tables_to_appear_in_same_query!(
+    admins,
+    page_revision,
+    pages,
+);
