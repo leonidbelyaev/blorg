@@ -12,8 +12,11 @@ diesel::table! {
     page_revision (id) {
         id -> Nullable<Integer>,
         page_id -> Nullable<Integer>,
-        time -> Nullable<Text>,
+        iso_time -> Text,
+        unix_time -> Integer,
+        html_content -> Text,
         markdown_content -> Nullable<Text>,
+        sidebar_html_content -> Text,
         sidebar_markdown_content -> Nullable<Text>,
     }
 }
@@ -24,12 +27,6 @@ diesel::table! {
         parent_id -> Nullable<Integer>,
         title -> Text,
         slug -> Text,
-        create_time -> Text,
-        update_time -> Nullable<Text>,
-        html_content -> Text,
-        markdown_content -> Text,
-        sidebar_html_content -> Text,
-        sidebar_markdown_content -> Text,
     }
 }
 

@@ -37,6 +37,12 @@ fn md2html(md: String, options: Options) -> String {
     html_output
 }
 
+#[derive(QueryableByName, Debug, Serialize)]
+struct IntegerContainer {
+    #[diesel(sql_type = Nullable<Integer>)]
+    int: Option<i32>,
+}
+
 #[derive(
     Queryable, QueryableByName, Insertable, AsChangeset, Serialize, Deserialize, Debug, Clone,
 )]
@@ -66,6 +72,52 @@ pub struct Page {
 }
 
 impl Page {
+    pub fn create_and_insert(parent_id: Option<i32>, page_info: PageInfo, parser_options:Options) -> () {
+	let page = Page {
+	    id: None,
+	    parent_id: parent_id,
+	    title: page_info.title.clone(),
+	    slug: page_info.slug.clone(),
+	}
+
+	connection
+	    .run(move |c| {
+		diesel::insert_into(self::schema::pages::dsl::pages)
+		    .values(page)
+		    .execute(c)
+		    .expect("Error saving new page");
+	    }).await;
+
+	// HACK: We do this because diesel does not support RETURNING for Sqlite Backend
+    let page_id: Option<i32> = connection
+        .run(move |c| {
+            let query = sql_query("SELECT last_insert_rowid() AS int");
+            let binding = query.load::<IntegerContainer>(c).expect("Database error");
+            binding.first().expect("Database error").int
+        })
+        .await;
+
+	let page_revision = PageRevision {
+	    id: None,
+	    page_id: page_id,
+	    iso_8601_time: Utc::now().format("%Y-%m-%d").to_string(),
+	    unix_time: Utc::now().timestamp(),
+	    html_content: md2html(page_info.markdown_content.clone(), parser_options),
+	    markdown_content: page_info.markdown_content.clone(),
+	    sidebar_html_content: md2html(page_info.sidebar_markdown_content.clone(), parser_options),
+	    sidebar_markdown_content: page_info.sidebar_markdown_content.clone(),
+	}
+
+	connection
+	    .run(move |c| {
+		diesel::insert_into(self::schema::pages::dsl::page_revision)
+		    .values(page_revision)
+		    .execute(c)
+		    .expect("Error saving page revision");
+	    }).await;
+
+    }
+
     pub fn new(parent_id: Option<i32>, page_info: PageInfo, parser_options: Options) -> Self {
         Page {
             id: None,
