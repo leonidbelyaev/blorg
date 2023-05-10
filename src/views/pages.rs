@@ -358,13 +358,13 @@ pub async fn get_page(
     let all_revisions = connection
         .run(move |c| {
             page_revision
-                .filter(self::schema::page_revision::dsl::id.eq(child.id))
+                .filter(self::schema::page_revision::dsl::page_id.eq(child.id))
                 .order(unix_time)
                 .load::<PageRevision>(c)
                 .expect("Database error finding page revision")
         })
         .await;
-    let latest_revision = all_revisions.first().expect("No such page revision found");
+    let latest_revision = all_revisions.last().expect("No such page revision found");
     // TODO if revision number set, view that revision
 
     Template::render(
