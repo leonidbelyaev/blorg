@@ -104,18 +104,21 @@ async fn init_with_defaults(
     }
 
     // TODO this query must be changed for the page revision model
+    // Modify to use multiple select
     let query = sql_query(
         r#"
              WITH RECURSIVE CTE AS (
-             SELECT id, slug AS path, title, markdown_content, sidebar_markdown_content
+             SELECT id, slug AS path, title--, markdown_content, sidebar_markdown_content
              FROM page
              WHERE parent_id IS NULL
              UNION ALL
-             SELECT p.id, path || '/' || slug, p.title, p.markdown_content, p.sidebar_markdown_content
+             SELECT p.id, path || '/' || slug, p.title--, p.markdown_content, p.sidebar_markdown_content
              FROM page p
              JOIN CTE ON p.parent_id = CTE.id
            )
            SELECT * FROM CTE
+           LEFT JOIN page_revision
+           ON CTE.id = page_revision.page_id;
 "#,
     );
 

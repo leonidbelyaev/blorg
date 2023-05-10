@@ -24,9 +24,9 @@ diesel::table! {
         iso_time -> Text,
         unix_time -> Integer,
         html_content -> Text,
-        markdown_content -> Nullable<Text>,
+        markdown_content -> Text,
         sidebar_html_content -> Text,
-        sidebar_markdown_content -> Nullable<Text>,
+        sidebar_markdown_content -> Text,
     }
 }
 

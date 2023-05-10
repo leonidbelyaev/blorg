@@ -24,20 +24,20 @@
 {% endif %}
 <div class="articleheader">
 <h1>{{ page.title }}</h1>
-<small>
+{# <small>
   Created at: {{ page.create_time }}.
 {% if page.update_time %}
   Edited at: {{ page.update_time }}.
 {% endif %}
-  </small>
+  </small> #}
 </div>
-{{ page.html_content | safe}}
+{{ page_revision.html_content | safe}}
 {% endblock content %}
 
 {% block sidebar %}
 <div class="sidebar-content">
 <small>
-{{ page.sidebar_html_content | safe }}
+{{ page_revision.sidebar_html_content | safe }}
 </small>
 </div>
 {% endblock sidebar %}
