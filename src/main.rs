@@ -83,17 +83,8 @@ async fn init_with_defaults(
 ) {
     use self::models::Page;
 
-    use self::schema::pages::dsl::*;
+    use self::schema::page::dsl::*;
 
-    let page_count: i64 = connection
-        .run(move |c| pages.count().get_result(c).unwrap())
-        .await;
-
-    if page_count == 0 {
-        Page::populate_default_root(connection, memory_connection, state).await;
-    }
-
-    // TODO change out this virtual table definition
     memory_connection.run(move |c| {
          let query = sql_query(
                 r#"
@@ -104,15 +95,24 @@ async fn init_with_defaults(
         }
         ).await;
 
+    let page_count: i64 = connection
+        .run(move |c| page.count().get_result(c).unwrap())
+        .await;
+
+    if page_count == 0 {
+        Page::populate_default_root(connection, memory_connection, state).await;
+    }
+
+    // TODO this query must be changed for the page revision model
     let query = sql_query(
         r#"
              WITH RECURSIVE CTE AS (
              SELECT id, slug AS path, title, markdown_content, sidebar_markdown_content
-             FROM pages
+             FROM page
              WHERE parent_id IS NULL
              UNION ALL
              SELECT p.id, path || '/' || slug, p.title, p.markdown_content, p.sidebar_markdown_content
-             FROM pages p
+             FROM page p
              JOIN CTE ON p.parent_id = CTE.id
            )
            SELECT * FROM CTE

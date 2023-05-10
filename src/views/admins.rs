@@ -40,10 +40,10 @@ pub struct AdminInfo {
 
 #[get("/admins/authenticate")]
 pub async fn authenticate_form(connection: PersistDatabase) -> Template {
-    use self::schema::admins::dsl::*;
+    use self::schema::admin::dsl::*;
 
     let count: i64 = connection
-        .run(move |c| admins.count().get_result(c).unwrap())
+        .run(move |c| admin.count().get_result(c).unwrap())
         .await;
 
     Template::render(
@@ -58,7 +58,7 @@ pub async fn authenticate(
     jar: &CookieJar<'_>,
     connection: PersistDatabase,
 ) -> Either<Template, Redirect> {
-    use self::schema::admins::dsl::*;
+    use self::schema::admin::dsl::*;
 
     let password_hashed = hash_password(&admin_info.password);
 
@@ -67,7 +67,7 @@ pub async fn authenticate(
 
     let binding = connection
         .run(move |c| {
-            admins
+            admin
                 .filter(username.eq(usrname))
                 .filter(password_hash.eq(pwhash))
                 .load::<Admin>(c)
@@ -82,7 +82,7 @@ pub async fn authenticate(
         }
         None => {
             let count: i64 = connection
-                .run(move |c| admins.count().get_result(c).unwrap())
+                .run(move |c| admin.count().get_result(c).unwrap())
                 .await;
             // let count: i64 = admins.count().get_result(&mut connection).unwrap();
 
@@ -93,7 +93,7 @@ pub async fn authenticate(
                     password_hash: password_hashed,
                 };
                 connection
-                    .run(move |c| diesel::insert_into(admins).values(&new_user).execute(c))
+                    .run(move |c| diesel::insert_into(admin).values(&new_user).execute(c))
                     .await;
                 //diesel::insert_into(admins).values(&new_user).execute(&mut connection);
                 jar.add_private(Cookie::new("user_id", Some(1).unwrap().to_string()));

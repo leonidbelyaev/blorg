@@ -130,7 +130,7 @@ pub async fn create_child_page(
     connection: PersistDatabase,
     memory_connection: MemoryDatabase,
 ) -> Redirect {
-    use self::schema::pages::dsl::*;
+    use self::schema::page::dsl::*;
     use models::Page;
 
     let parent = path2page(&path, &connection).await;
@@ -158,7 +158,7 @@ pub async fn create_child_page(
 
     // connection
     //     .run(move |c| {
-    //         diesel::insert_into(self::schema::pages::dsl::pages)
+    //         diesel::insert_into(self::schema::page::dsl::pages)
     //             .values(new_page)
     //             .execute(c)
     //             .expect("Error saving new page")
@@ -203,14 +203,13 @@ pub fn create_child_page_form(path: PathBuf, admin: AuthenticatedAdmin) -> Templ
 pub async fn get_page(path: PathBuf, jar: &CookieJar<'_>, connection: PersistDatabase) -> Template {
     use self::models::Page;
 
-    use self::schema::pages::dsl::*;
+    use self::schema::page::dsl::*;
 
     let child = path2page(&path, &connection).await;
 
     let tree_source = connection
         .run(move |c| {
-            pages
-                .select((id, parent_id, slug))
+            page.select((id, parent_id, slug))
                 .load::<(Option<i32>, Option<i32>, String)>(c)
                 .expect("Database error")
         })
@@ -363,47 +362,56 @@ pub async fn edit_page(
     connection: PersistDatabase,
     memory_connection: MemoryDatabase,
 ) -> Redirect {
-    use self::models::Page;
+    Page::edit_and_update(
+        path.clone(),
+        new_page.into_inner(),
+        &connection,
+        &memory_connection,
+        state,
+    )
+    .await;
 
-    use self::schema::pages::dsl::*;
+    // use self::models::Page;
 
-    let child = path2page(&path, &connection).await;
+    // use self::schema::page::dsl::*;
 
-    let new_page = new_page.into_inner();
+    // let child = path2page(&path, &connection).await;
 
-    let mem_page = new_page.clone();
+    // let new_page = new_page.into_inner();
 
-    let mut redirect_path = path.clone();
-    redirect_path.pop();
-    redirect_path.push(&new_page.slug);
+    // let mem_page = new_page.clone();
 
-    let mem_path = redirect_path.clone();
+    // let mut redirect_path = path.clone();
+    // redirect_path.pop();
+    // redirect_path.push(&new_page.slug);
 
-    let put_page = Page::edit(child.clone(), new_page, state.parser_options);
+    // let mem_path = redirect_path.clone();
 
-    connection
-        .run(move |c| {
-            diesel::update(pages)
-                .filter(id.eq(child.id))
-                .set(&put_page)
-                .execute(c)
-                .expect("Failed to update page from path")
-        })
-        .await;
+    // let put_page = Page::edit(child.clone(), new_page, state.parser_options);
 
-    memory_connection
-        .run(move |c| {
-	    let query = sql_query("UPDATE search SET path=?, title=?, markdown_content=?, sidebar_markdown_content=? WHERE id = ?");
-	    query
-        .bind::<Text, _>(mem_path.display().to_string())
-        .bind::<Text, _>(mem_page.title.clone())
-        .bind::<Text, _>(mem_page.markdown_content.clone())
-        .bind::<Text, _>(mem_page.sidebar_markdown_content.clone())
-        .bind::<Nullable<Integer>, _>(child.id)
-        .execute(c).expect("Database error");
-	}).await;
+    // connection
+    //     .run(move |c| {
+    //         diesel::update(pages)
+    //             .filter(id.eq(child.id))
+    //             .set(&put_page)
+    //             .execute(c)
+    //             .expect("Failed to update page from path")
+    //     })
+    //     .await;
 
-    Redirect::to(uri!(get_page(redirect_path)))
+    // memory_connection
+    //     .run(move |c| {
+    // 	    let query = sql_query("UPDATE search SET path=?, title=?, markdown_content=?, sidebar_markdown_content=? WHERE id = ?");
+    // 	    query
+    //     .bind::<Text, _>(mem_path.display().to_string())
+    //     .bind::<Text, _>(mem_page.title.clone())
+    //     .bind::<Text, _>(mem_page.markdown_content.clone())
+    //     .bind::<Text, _>(mem_page.sidebar_markdown_content.clone())
+    //     .bind::<Nullable<Integer>, _>(child.id)
+    //     .execute(c).expect("Database error");
+    // 	}).await;
+
+    Redirect::to(uri!(get_page(path)))
 }
 
 #[get("/edit/pages/<path..>")]
@@ -426,18 +434,18 @@ pub async fn delete_page(
 ) -> Redirect {
     use self::models::Page;
 
-    use self::schema::pages::dsl::*;
+    use self::schema::page::dsl::*;
 
     let spath = format!("/{}", path.to_str().unwrap().to_string());
     if spath == "/" {
         panic!()
     }
-    let page = path2page(&path, &connection).await;
+    let to_delete = path2page(&path, &connection).await;
 
     connection
         .run(move |c| {
-            diesel::delete(pages)
-                .filter(id.eq(page.id))
+            diesel::delete(page)
+                .filter(id.eq(to_delete.id))
                 .execute(c)
                 .expect("Failed to delete page.")
         })
@@ -447,7 +455,7 @@ pub async fn delete_page(
         .run(move |c| {
             let query = sql_query("DELETE FROM search WHERE id = ?");
             query
-                .bind::<Nullable<Integer>, _>(page.id)
+                .bind::<Nullable<Integer>, _>(to_delete.id)
                 .execute(c)
                 .expect("Database error");
         })
@@ -465,7 +473,7 @@ pub async fn search_pages(
     connection: PersistDatabase,
 ) -> Template {
     use self::models::Page;
-    use self::schema::pages::dsl::*;
+    use self::schema::page::dsl::*;
 
     let search_results = sql_query(
         r#"SELECT id, path, snippet(search, 2, '<span class="highlight">', '</span>', '...', 64) AS "title", snippet(search, 3, '<span class="highlight">', '</span>', '...', 64) AS "markdown_content", snippet(search, 4, '<span class="highlight">', '</span>', '...', 64) AS "sidebar_markdown_content" FROM search WHERE search MATCH '{title markdown_content sidebar_markdown_content}: ' || ? "#,
@@ -490,17 +498,17 @@ pub async fn search_pages(
 
 async fn id2path(page_id: i64, connection: &PersistDatabase) -> String {
     use self::models::Page;
-    use self::schema::pages::dsl::*;
+    use self::schema::page::dsl::*;
 
     let query = sql_query(
         r#"
              WITH RECURSIVE CTE AS (
              SELECT id, slug AS path
-             FROM pages
+             FROM page
              WHERE parent_id IS NULL
              UNION ALL
              SELECT p.id, path || '/' || slug
-             FROM pages p
+             FROM page p
              JOIN CTE ON p.parent_id = CTE.id
            )
            SELECT path AS "string" FROM CTE WHERE id = ?
@@ -522,20 +530,20 @@ async fn id2path(page_id: i64, connection: &PersistDatabase) -> String {
 
 async fn path2page(path: &PathBuf, connection: &PersistDatabase) -> Page {
     use self::models::Page;
-    use self::schema::pages::dsl::*;
+    use self::schema::page::dsl::*;
 
     let query = sql_query(
         r#"
              WITH RECURSIVE CTE AS (
              SELECT id, slug AS path
-             FROM pages
+             FROM page
              WHERE parent_id IS NULL
              UNION ALL
              SELECT p.id, path || '/' || slug
-             FROM pages p
+             FROM page p
              JOIN CTE ON p.parent_id = CTE.id
            )
-           SELECT * FROM pages WHERE id = (
+           SELECT * FROM page WHERE id = (
            SELECT id FROM CTE WHERE path = ?
            );
 "#,

@@ -1,6 +1,6 @@
-use crate::schema::admins;
+use crate::schema::admin;
+use crate::schema::page;
 use crate::schema::page_revision;
-use crate::schema::pages;
 use crate::views::pages::PageInfo;
 use crate::{ManagedState, MemoryDatabase, PersistDatabase};
 use chrono::Utc;
@@ -47,9 +47,7 @@ struct IntegerContainer {
     int: Option<i32>,
 }
 
-#[derive(
-    Queryable, QueryableByName, Insertable, AsChangeset, Serialize, Deserialize, Debug, Clone,
-)]
+#[derive(Queryable, QueryableByName, Insertable, Serialize, Deserialize, Debug, Clone)]
 #[diesel(primary_key(id))]
 #[diesel(table_name = page_revision)]
 pub struct PageRevision {
@@ -59,8 +57,8 @@ pub struct PageRevision {
     pub page_id: Option<i32>,
     #[diesel(sql_type = Text)]
     pub iso_time: String,
-    #[diesel(sql_type = BigInt)]
-    pub unix_time: i64, // HACK Diesel uses i32 for the default sqlite integer, so this fails in 2038
+    #[diesel(sql_type = Integer)]
+    pub unix_time: i32, // HACK Diesel uses i32 for the default sqlite integer, so this fails in 2038
     #[diesel(sql_type = Text)]
     pub html_content: String,
     #[diesel(sql_type = Text)]
@@ -75,7 +73,7 @@ pub struct PageRevision {
     Queryable, QueryableByName, Insertable, AsChangeset, Serialize, Deserialize, Debug, Clone,
 )]
 #[diesel(primary_key(id))]
-#[diesel(table_name = pages)]
+#[diesel(table_name = page)]
 pub struct Page {
     #[diesel(sql_type = Nullable<Integer>)]
     pub id: Option<i32>,
@@ -134,7 +132,7 @@ impl Page {
 
         connection
             .run(move |c| {
-                diesel::insert_into(crate::schema::pages::dsl::pages)
+                diesel::insert_into(crate::schema::page::dsl::page)
                     .values(page)
                     .execute(c)
                     .expect("Error saving new page");
@@ -154,7 +152,7 @@ impl Page {
             id: None,
             page_id: page_id,
             iso_time: Utc::now().format("%Y-%m-%d").to_string(),
-            unix_time: Utc::now().timestamp(),
+            unix_time: Utc::now().timestamp() as i32,
             html_content: md2html(page_info.markdown_content.clone(), state.parser_options),
             markdown_content: page_info.markdown_content.clone(),
             sidebar_html_content: md2html(
@@ -196,7 +194,7 @@ impl Page {
         memory_connection: &MemoryDatabase,
         state: &State<ManagedState>,
     ) {
-        let to_edit = path2page(&path, connection).await;
+        let to_edit = Self::from_path(&edit_path, connection).await;
 
         let edited = Page {
             id: to_edit.id,
@@ -209,7 +207,7 @@ impl Page {
             id: None,
             page_id: to_edit.id,
             iso_time: Utc::now().to_string(),
-            unix_time: Utc::now().timestamp(),
+            unix_time: Utc::now().timestamp() as i32,
             html_content: md2html(
                 edit_page_info.markdown_content.clone(),
                 state.parser_options,
@@ -224,8 +222,8 @@ impl Page {
 
         connection
             .run(move |c| {
-                use crate::schema::pages::dsl::*;
-                diesel::update(pages)
+                use crate::schema::page::dsl::*;
+                diesel::update(page)
                     .filter(id.eq(to_edit.id))
                     .set(&edited)
                     .execute(c)
@@ -256,13 +254,52 @@ impl Page {
         .execute(c).expect("Database error");
 	}).await;
     }
+
+    async fn from_path(path: &PathBuf, connection: &PersistDatabase) -> Self {
+        use crate::schema::page::dsl::*;
+
+        let query = sql_query(
+            r#"
+             WITH RECURSIVE CTE AS (
+             SELECT id, slug AS path
+             FROM pages
+             WHERE parent_id IS NULL
+             UNION ALL
+             SELECT p.id, path || '/' || slug
+             FROM pages p
+             JOIN CTE ON p.parent_id = CTE.id
+           )
+           SELECT * FROM pages WHERE id = (
+           SELECT id FROM CTE WHERE path = ?
+           );
+"#,
+        );
+        let path = path.to_str().unwrap().to_string();
+        let path_spec = if path != "" {
+            format!("/{}", path)
+        } else {
+            path
+        };
+        println!("path spec is {:?}", path_spec);
+        let binding = connection
+            .run(move |c| {
+                query
+                    .bind::<Text, _>(path_spec)
+                    .load::<Page>(c)
+                    .expect("Database error finding page")
+            })
+            .await;
+        let child = binding.first().expect("No such page found");
+        println!("Child is: {:?}", child);
+        child.clone()
+    }
 }
 
 #[derive(
     Queryable, QueryableByName, Insertable, AsChangeset, Serialize, Deserialize, Debug, Clone,
 )]
 #[diesel(primary_key(id))]
-#[diesel(table_name = admins)]
+#[diesel(table_name = admin)]
 pub struct Admin {
     #[diesel(sql_type = Nullable<Integer>)]
     pub id: Option<i32>,

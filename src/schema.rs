@@ -1,10 +1,19 @@
 // @generated automatically by Diesel CLI.
 
 diesel::table! {
-    admins (id) {
+    admin (id) {
         id -> Nullable<Integer>,
         username -> Text,
         password_hash -> Text,
+    }
+}
+
+diesel::table! {
+    page (id) {
+        id -> Nullable<Integer>,
+        parent_id -> Nullable<Integer>,
+        title -> Text,
+        slug -> Text,
     }
 }
 
@@ -13,7 +22,7 @@ diesel::table! {
         id -> Nullable<Integer>,
         page_id -> Nullable<Integer>,
         iso_time -> Text,
-        unix_time -> BigInt,
+        unix_time -> Integer,
         html_content -> Text,
         markdown_content -> Nullable<Text>,
         sidebar_html_content -> Text,
@@ -21,13 +30,10 @@ diesel::table! {
     }
 }
 
-diesel::table! {
-    pages (id) {
-        id -> Nullable<Integer>,
-        parent_id -> Nullable<Integer>,
-        title -> Text,
-        slug -> Text,
-    }
-}
+diesel::joinable!(page_revision -> page (page_id));
 
-diesel::allow_tables_to_appear_in_same_query!(admins, page_revision, pages,);
+diesel::allow_tables_to_appear_in_same_query!(
+    admin,
+    page,
+    page_revision,
+);
