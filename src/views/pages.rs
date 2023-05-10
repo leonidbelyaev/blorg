@@ -157,7 +157,7 @@ pub async fn create_child_page(
     )
     .await;
 
-    Redirect::to(uri!(get_page(child_path, None::<i32>)))
+    Redirect::to(uri!(get_page(child_path, None::<usize>)))
 }
 
 #[get("/create/pages/<path..>")]
@@ -165,10 +165,10 @@ pub fn create_child_page_form(path: PathBuf, admin: AuthenticatedAdmin) -> Templ
     Template::render("create_child_page_form", context! {path: path})
 }
 
-#[get("/pages/<path..>?<revision_number>")]
+#[get("/pages/<path..>?<revision>")]
 pub async fn get_page(
     path: PathBuf,
-    revision_number: Option<i32>,
+    revision: Option<usize>,
     jar: &CookieJar<'_>,
     connection: PersistDatabase,
 ) -> Template {
@@ -329,12 +329,17 @@ pub async fn get_page(
                 .expect("Database error finding page revision")
         })
         .await;
-    let latest_revision = all_revisions.last().expect("No such page revision found");
-    // TODO if revision number set, view that revision
+    let to_view = match revision {
+        Some(rev) => all_revisions
+            .iter()
+            .nth(rev)
+            .expect("No such page revision found."),
+        None => all_revisions.last().expect("No such page revision found."),
+    };
 
     Template::render(
         "page",
-        context! {page: &child, page_revision: latest_revision.clone(), all_revisions: all_revisions, nav: &nav_element, is_user: is_user, path: path},
+        context! {page: &child, page_revision: to_view.clone(), all_revisions: all_revisions, nav: &nav_element, is_user: is_user, path: path},
     )
 }
 
@@ -396,7 +401,7 @@ pub async fn edit_page(
     //     .execute(c).expect("Database error");
     // 	}).await;
 
-    Redirect::to(uri!(get_page(path, None::<i32>)))
+    Redirect::to(uri!(get_page(path, None::<usize>)))
 }
 
 pub async fn get_latest_revision(page_id: i32, connection: &PersistDatabase) -> PageRevision {
@@ -470,7 +475,7 @@ pub async fn delete_page(
 
     let mut path = path.clone();
     path.pop();
-    Redirect::to(uri!(get_page(path, None::<i32>)))
+    Redirect::to(uri!(get_page(path, None::<usize>)))
 }
 
 #[get("/search/pages?<query>")]

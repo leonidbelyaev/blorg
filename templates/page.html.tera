@@ -53,7 +53,7 @@
   <small>
     <ul>
 {% for revision in all_revisions %}
-  <li><a href="/pages/{{ path }}?revision={{loop.index}}">Version #{{ loop.index }}</a></li>
+  <li><a href="/pages/{{ path }}?revision={{loop.index - 1}}">Version #{{ loop.index }}</a></li>
 {% endfor %}
   </ul>
   </small>
