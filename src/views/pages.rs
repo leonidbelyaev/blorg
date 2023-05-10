@@ -386,7 +386,7 @@ pub async fn get_page(
 
     Template::render(
         "page",
-        context! {page: &child, page_revision: to_view.clone(), all_revisions: all_revisions, nav: &nav_element, is_user: is_user, path: path, is_latest: is_latest},
+        context! {page: &child, page_revision: to_view.clone(), all_revisions: all_revisions, nav: &nav_element, is_user: is_user, path: path, is_latest: is_latest, revision_number: revision},
     )
 }
 
