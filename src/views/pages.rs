@@ -329,6 +329,10 @@ pub async fn get_page(
                 .expect("Database error finding page revision")
         })
         .await;
+    let mut is_latest = true;
+    if revision.is_some() && revision.unwrap() != (all_revisions.len() - 1) {
+        is_latest = false;
+    }
     let to_view = match revision {
         Some(rev) => all_revisions
             .iter()
@@ -339,7 +343,7 @@ pub async fn get_page(
 
     Template::render(
         "page",
-        context! {page: &child, page_revision: to_view.clone(), all_revisions: all_revisions, nav: &nav_element, is_user: is_user, path: path},
+        context! {page: &child, page_revision: to_view.clone(), all_revisions: all_revisions, nav: &nav_element, is_user: is_user, path: path, is_latest: is_latest},
     )
 }
 

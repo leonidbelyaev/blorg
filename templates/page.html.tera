@@ -23,13 +23,13 @@
 </div>
 {% endif %}
 <div class="articleheader">
-<h1>{{ page.title }}</h1>
-{# <small>
-  Created at: {{ page.create_time }}.
-{% if page.update_time %}
-  Edited at: {{ page.update_time }}.
+{% if not is_latest %}
+<span class="datewarn">This revision out of date. View the latest revision <a href="/pages/{{ path }}">here</a>.</span>
 {% endif %}
-  </small> #}
+<h1>{{ page.title }}</h1>
+<small>
+  {{ page_revision.iso_time }}
+</small>
 </div>
 {{ page_revision.html_content | safe}}
 {% endblock content %}
@@ -53,7 +53,7 @@
   <small>
     <ul>
 {% for revision in all_revisions %}
-  <li><a href="/pages/{{ path }}?revision={{loop.index - 1}}">Version #{{ loop.index }}</a></li>
+  <li><a href="/pages/{{ path }}?revision={{loop.index - 1}}"><time>{{ revision.iso_time }}</time></a></li>
 {% endfor %}
   </ul>
   </small>
