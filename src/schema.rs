@@ -13,7 +13,7 @@ diesel::table! {
         id -> Nullable<Integer>,
         page_id -> Nullable<Integer>,
         iso_time -> Text,
-        unix_time -> Integer,
+        unix_time -> BigInt,
         html_content -> Text,
         markdown_content -> Nullable<Text>,
         sidebar_html_content -> Text,
@@ -30,8 +30,4 @@ diesel::table! {
     }
 }
 
-diesel::allow_tables_to_appear_in_same_query!(
-    admins,
-    page_revision,
-    pages,
-);
+diesel::allow_tables_to_appear_in_same_query!(admins, page_revision, pages,);

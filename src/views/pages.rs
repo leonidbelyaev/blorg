@@ -140,46 +140,56 @@ pub async fn create_child_page(
     let mut child_path = path.clone();
     child_path.push(&child_page.slug);
 
-    let new_page = Page::new(parent.id, child_page, state.parser_options);
+    // let new_page = Page::new(parent.id, child_page, state.parser_options);
 
-    let to_insert = new_page.clone();
+    // let to_insert = new_page.clone();
 
     let cloned_path = child_path.clone();
 
-    connection
-        .run(move |c| {
-            diesel::insert_into(self::schema::pages::dsl::pages)
-                .values(new_page)
-                .execute(c)
-                .expect("Error saving new page")
-        })
-        .await;
+    Page::create_child_and_insert(
+        parent.id,
+        path.clone(),
+        child_page,
+        state,
+        &connection,
+        &memory_connection,
+    )
+    .await;
 
-    // HACK: We do this because the diesel sqlite backend does not support RETURNING clauses
-    let page_id: Option<i32> = connection
-        .run(move |c| {
-            let query = sql_query("SELECT last_insert_rowid() AS int");
-            let binding = query.load::<IntegerContainer>(c).expect("Database error");
-            binding.first().expect("Database error").int
-        })
-        .await;
+    // connection
+    //     .run(move |c| {
+    //         diesel::insert_into(self::schema::pages::dsl::pages)
+    //             .values(new_page)
+    //             .execute(c)
+    //             .expect("Error saving new page")
+    //     })
+    //     .await;
 
-    println!("{:?}", page_id);
+    // // HACK: We do this because the diesel sqlite backend does not support RETURNING clauses
+    // let page_id: Option<i32> = connection
+    //     .run(move |c| {
+    //         let query = sql_query("SELECT last_insert_rowid() AS int");
+    //         let binding = query.load::<IntegerContainer>(c).expect("Database error");
+    //         binding.first().expect("Database error").int
+    //     })
+    //     .await;
 
-    memory_connection
-        .run(move |c| {
-            let query = sql_query(
-                    r#"
-                    INSERT INTO search (id, path, title, markdown_content, sidebar_markdown_content) VALUES (?, ?, ?, ?, ?)
-                    "#
-            );
-            let binding = query.bind::<Nullable<Integer>, _>(page_id)
-                    .bind::<Text, _>(cloned_path.display().to_string())
-                    .bind::<Text, _>(to_insert.title)
-                    .bind::<Text, _>(to_insert.markdown_content)
-                    .bind::<Text, _>(to_insert.sidebar_markdown_content);
-            binding.execute(c).expect("Database error");
-        }).await;
+    // println!("{:?}", page_id);
+
+    // memory_connection
+    //     .run(move |c| {
+    //         let query = sql_query(
+    //                 r#"
+    //                 INSERT INTO search (id, path, title, markdown_content, sidebar_markdown_content) VALUES (?, ?, ?, ?, ?)
+    //                 "#
+    //         );
+    //         let binding = query.bind::<Nullable<Integer>, _>(page_id)
+    //                 .bind::<Text, _>(cloned_path.display().to_string())
+    //                 .bind::<Text, _>(to_insert.title)
+    //                 .bind::<Text, _>(to_insert.markdown_content)
+    //                 .bind::<Text, _>(to_insert.sidebar_markdown_content);
+    //         binding.execute(c).expect("Database error");
+    //     }).await;
 
     Redirect::to(uri!(get_page(child_path)))
 }

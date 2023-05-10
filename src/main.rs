@@ -6,6 +6,7 @@ use diesel::sql_types::{Integer, Nullable, Text};
 use diesel::{prelude::*, sql_query};
 use pulldown_cmark::{html, Options, Parser};
 use rocket::fairing::AdHoc;
+use rocket::State;
 use rocket::{launch, routes};
 use rocket_dyn_templates::Template;
 use rocket_sync_db_pools::{database, diesel};
@@ -69,12 +70,17 @@ async fn rocket() -> _ {
             Box::pin(async move {
                 let db = PersistDatabase::get_one(rocket).await.unwrap();
                 let memdb = MemoryDatabase::get_one(rocket).await.unwrap();
-                init_with_defaults(db, memdb).await;
+                let state = rocket.state::<ManagedState>().unwrap();
+                init_with_defaults(&db, &memdb, state.into()).await;
             })
         }))
 }
 
-async fn init_with_defaults(connection: PersistDatabase, memory_connection: MemoryDatabase) {
+async fn init_with_defaults(
+    connection: &PersistDatabase,
+    memory_connection: &MemoryDatabase,
+    state: &State<ManagedState>,
+) {
     use self::models::Page;
 
     use self::schema::pages::dsl::*;
@@ -84,28 +90,10 @@ async fn init_with_defaults(connection: PersistDatabase, memory_connection: Memo
         .await;
 
     if page_count == 0 {
-        let default_root = Page {
-            id: None,
-            parent_id: None,
-            title: "".to_string(),
-            slug: "".to_string(),
-            create_time: Utc::now().format("%Y-%m-%d").to_string(),
-            update_time: None,
-            sidebar_html_content: "default root.".to_string(),
-            sidebar_markdown_content: "default root.".to_string(),
-            html_content: "default root.".to_string(),
-            markdown_content: "default root.".to_string(),
-        };
-        connection
-            .run(move |c| {
-                diesel::insert_into(pages)
-                    .values(&default_root)
-                    .execute(c)
-                    .unwrap();
-            })
-            .await;
+        Page::populate_default_root(connection, memory_connection, state).await;
     }
 
+    // TODO change out this virtual table definition
     memory_connection.run(move |c| {
          let query = sql_query(
                 r#"
