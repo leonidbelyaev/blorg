@@ -206,7 +206,7 @@ impl Page {
         let new_revision = PageRevision {
             id: None,
             page_id: to_edit.id,
-            iso_time: Utc::now().to_string(),
+            iso_time: Utc::now().format("%Y-%m-%d").to_string(),
             unix_time: Utc::now().timestamp() as i32,
             html_content: md2html(
                 edit_page_info.markdown_content.clone(),
