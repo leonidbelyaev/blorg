@@ -262,14 +262,14 @@ impl Page {
             r#"
              WITH RECURSIVE CTE AS (
              SELECT id, slug AS path
-             FROM pages
+             FROM page
              WHERE parent_id IS NULL
              UNION ALL
              SELECT p.id, path || '/' || slug
-             FROM pages p
+             FROM page p
              JOIN CTE ON p.parent_id = CTE.id
            )
-           SELECT * FROM pages WHERE id = (
+           SELECT * FROM page WHERE id = (
            SELECT id FROM CTE WHERE path = ?
            );
 "#,
