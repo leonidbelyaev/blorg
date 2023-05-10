@@ -224,8 +224,9 @@ impl Page {
 
         connection
             .run(move |c| {
+                use crate::schema::pages::dsl::*;
                 diesel::update(pages)
-                    .filter(id.eq(child.id))
+                    .filter(id.eq(to_edit.id))
                     .set(&edited)
                     .execute(c)
                     .expect("Failed to update page from path")
