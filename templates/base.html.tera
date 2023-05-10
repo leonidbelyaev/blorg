@@ -36,8 +36,8 @@
             </form>
         </div>
         {% block nav %}{% endblock nav %}
+	{% block revisions %}{% endblock revisions %}
         {% block sidebar %}{% endblock sidebar %}
-	{% block version %}{% endblock version %}
         </div>
         </div>
     <footer>

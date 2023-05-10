@@ -95,6 +95,11 @@ body {
     padding: 10px;
 }
 
+.revisions {
+    padding: 10px;
+    border-bottom: dotted black 2px;
+}
+
 nav {
     border-bottom: dotted black 2px;
     padding-left: 10px;

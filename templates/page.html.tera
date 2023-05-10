@@ -37,13 +37,25 @@
 {% block sidebar %}
 <div class="sidebar-content">
 <small>
+{% if page_revision.sidebar_html_content %}
 {{ page_revision.sidebar_html_content | safe }}
+{% else %}
+<p>
+  This page without sidenotes.
+</p>
+{% endif %}
 </small>
 </div>
 {% endblock sidebar %}
 
-{% block version %}
+{% block revisions %}
+<div class="revisions">
+  <small>
+    <ul>
 {% for revision in all_revisions %}
-  <a href="{{ path }}{{loop.index}}"></a>
+  <li><a href="/pages/{{ path }}?revision={{loop.index}}">Version #{{ loop.index }}</a></li>
 {% endfor %}
-{% endblock version %}
+  </ul>
+  </small>
+</div>
+{% endblock revisions %}
