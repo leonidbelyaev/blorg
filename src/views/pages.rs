@@ -157,41 +157,6 @@ pub async fn create_child_page(
     )
     .await;
 
-    // connection
-    //     .run(move |c| {
-    //         diesel::insert_into(self::schema::page::dsl::pages)
-    //             .values(new_page)
-    //             .execute(c)
-    //             .expect("Error saving new page")
-    //     })
-    //     .await;
-
-    // // HACK: We do this because the diesel sqlite backend does not support RETURNING clauses
-    // let page_id: Option<i32> = connection
-    //     .run(move |c| {
-    //         let query = sql_query("SELECT last_insert_rowid() AS int");
-    //         let binding = query.load::<IntegerContainer>(c).expect("Database error");
-    //         binding.first().expect("Database error").int
-    //     })
-    //     .await;
-
-    // println!("{:?}", page_id);
-
-    // memory_connection
-    //     .run(move |c| {
-    //         let query = sql_query(
-    //                 r#"
-    //                 INSERT INTO search (id, path, title, markdown_content, sidebar_markdown_content) VALUES (?, ?, ?, ?, ?)
-    //                 "#
-    //         );
-    //         let binding = query.bind::<Nullable<Integer>, _>(page_id)
-    //                 .bind::<Text, _>(cloned_path.display().to_string())
-    //                 .bind::<Text, _>(to_insert.title)
-    //                 .bind::<Text, _>(to_insert.markdown_content)
-    //                 .bind::<Text, _>(to_insert.sidebar_markdown_content);
-    //         binding.execute(c).expect("Database error");
-    //     }).await;
-
     Redirect::to(uri!(get_page(child_path, None::<i32>)))
 }
 
