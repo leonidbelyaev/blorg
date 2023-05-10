@@ -41,3 +41,9 @@
 </small>
 </div>
 {% endblock sidebar %}
+
+{% block version %}
+{% for revision in all_revisions %}
+  <a href="{{ path }}{{loop.index}}"></a>
+{% endfor %}
+{% endblock version %}

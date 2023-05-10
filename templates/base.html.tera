@@ -37,6 +37,7 @@
         </div>
         {% block nav %}{% endblock nav %}
         {% block sidebar %}{% endblock sidebar %}
+	{% block version %}{% endblock version %}
         </div>
         </div>
     <footer>
