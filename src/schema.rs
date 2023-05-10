@@ -9,6 +9,23 @@ diesel::table! {
 }
 
 diesel::table! {
+    comment (id) {
+        id -> Nullable<Integer>,
+        commenter_id -> Integer,
+        page_id -> Integer,
+        text -> Text,
+    }
+}
+
+diesel::table! {
+    commenter (id) {
+        id -> Nullable<Integer>,
+        alias -> Text,
+        password_hash -> Nullable<Text>,
+    }
+}
+
+diesel::table! {
     page (id) {
         id -> Nullable<Integer>,
         parent_id -> Nullable<Integer>,
@@ -30,10 +47,14 @@ diesel::table! {
     }
 }
 
+diesel::joinable!(comment -> commenter (commenter_id));
+diesel::joinable!(comment -> page (page_id));
 diesel::joinable!(page_revision -> page (page_id));
 
 diesel::allow_tables_to_appear_in_same_query!(
     admin,
+    comment,
+    commenter,
     page,
     page_revision,
 );
