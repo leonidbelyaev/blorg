@@ -106,7 +106,10 @@ pub async fn authenticate(
             }
         }
     }
-    Either::Right(Redirect::to(uri!(crate::views::pages::get_page(""))))
+    Either::Right(Redirect::to(uri!(crate::views::pages::get_page(
+        "",
+        None::<i32>
+    ))))
 }
 
 #[get("/admins/deauth")]

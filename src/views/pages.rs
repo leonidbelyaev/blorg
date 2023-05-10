@@ -191,7 +191,7 @@ pub async fn create_child_page(
     //         binding.execute(c).expect("Database error");
     //     }).await;
 
-    Redirect::to(uri!(get_page(child_path)))
+    Redirect::to(uri!(get_page(child_path, None::<i32>)))
 }
 
 #[get("/create/pages/<path..>")]
@@ -202,7 +202,7 @@ pub fn create_child_page_form(path: PathBuf, admin: AuthenticatedAdmin) -> Templ
 #[get("/pages/<path..>?<revision_number>")]
 pub async fn get_page(
     path: PathBuf,
-    revision_number: i32,
+    revision_number: Option<i32>,
     jar: &CookieJar<'_>,
     connection: PersistDatabase,
 ) -> Template {
@@ -368,7 +368,7 @@ pub async fn get_page(
 
     Template::render(
         "page",
-        context! {page: &child, page_revision: latest_revision, all_revisions: all_revisions, nav: &nav_element, is_user: is_user, path: path},
+        context! {page: &child, page_revision: latest_revision.clone(), all_revisions: all_revisions, nav: &nav_element, is_user: is_user, path: path},
     )
 }
 
@@ -430,7 +430,7 @@ pub async fn edit_page(
     //     .execute(c).expect("Database error");
     // 	}).await;
 
-    Redirect::to(uri!(get_page(path)))
+    Redirect::to(uri!(get_page(path, None::<i32>)))
 }
 
 #[get("/edit/pages/<path..>")]
@@ -482,7 +482,7 @@ pub async fn delete_page(
 
     let mut path = path.clone();
     path.pop();
-    Redirect::to(uri!(get_page(path)))
+    Redirect::to(uri!(get_page(path, None::<i32>)))
 }
 
 #[get("/search/pages?<query>")]
