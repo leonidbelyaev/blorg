@@ -10,5 +10,5 @@
 
 {% block form_title %}{{ page.title }}{% endblock form_title %}
 {% block form_slug %}{{ page.slug }}{% endblock form_slug %}
-{% block form_markdown_content %}{{ page.markdown_content }}{% endblock form_markdown_content %}
-{% block form_sidebar_markdown_content %}{{ page.sidebar_markdown_content }}{% endblock form_sidebar_markdown_content %}
+{% block form_markdown_content %}{{ latest_revision.markdown_content }}{% endblock form_markdown_content %}
+{% block form_sidebar_markdown_content %}{{ latest_revision.sidebar_markdown_content }}{% endblock form_sidebar_markdown_content %}

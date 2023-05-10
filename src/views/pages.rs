@@ -1,3 +1,4 @@
+use self::models::PageRevision;
 use diesel::sql_types::{BigInt, Integer, Text};
 use image::imageops::{BiLevel, ColorMap};
 use image::io::Reader;
@@ -433,6 +434,24 @@ pub async fn edit_page(
     Redirect::to(uri!(get_page(path, None::<i32>)))
 }
 
+pub async fn get_latest_revision(page_id: i32, connection: &PersistDatabase) -> PageRevision {
+    use self::models::PageRevision;
+    use self::schema::page_revision::dsl::*;
+    let all_revisions = connection
+        .run(move |c| {
+            page_revision
+                .filter(self::schema::page_revision::dsl::id.eq(page_id))
+                .order(unix_time)
+                .load::<PageRevision>(c)
+                .expect("Database error finding page revision")
+        })
+        .await;
+    all_revisions
+        .first()
+        .expect("No such page revision found")
+        .clone()
+}
+
 #[get("/edit/pages/<path..>")]
 pub async fn edit_page_form(
     admin: AuthenticatedAdmin,
@@ -440,8 +459,12 @@ pub async fn edit_page_form(
     connection: PersistDatabase,
 ) -> Template {
     let page = path2page(&path, &connection).await;
+    let latest_revision = get_latest_revision(page.id.unwrap(), &connection).await;
 
-    Template::render("edit_page_form", context! {page: page, path: path})
+    Template::render(
+        "edit_page_form",
+        context! {page: page, latest_revision: latest_revision, path: path},
+    )
 }
 
 #[get("/delete/pages/<path..>")]
