@@ -199,8 +199,13 @@ pub fn create_child_page_form(path: PathBuf, admin: AuthenticatedAdmin) -> Templ
     Template::render("create_child_page_form", context! {path: path})
 }
 
-#[get("/pages/<path..>")]
-pub async fn get_page(path: PathBuf, jar: &CookieJar<'_>, connection: PersistDatabase) -> Template {
+#[get("/pages/<path..>?<revision_number>")]
+pub async fn get_page(
+    path: PathBuf,
+    revision_number: i32,
+    jar: &CookieJar<'_>,
+    connection: PersistDatabase,
+) -> Template {
     use self::models::Page;
     use self::models::PageRevision;
 
@@ -349,7 +354,7 @@ pub async fn get_page(path: PathBuf, jar: &CookieJar<'_>, connection: PersistDat
     println!("{}", nav_element);
 
     use self::schema::page_revision::dsl::*;
-    let binding = connection
+    let all_revisions = connection
         .run(move |c| {
             page_revision
                 .filter(self::schema::page_revision::dsl::id.eq(child.id))
@@ -358,12 +363,12 @@ pub async fn get_page(path: PathBuf, jar: &CookieJar<'_>, connection: PersistDat
                 .expect("Database error finding page revision")
         })
         .await;
-    let latest_revision = binding.first().expect("No such page revision found");
-    // TODO diesel order-by query etc
+    let latest_revision = all_revisions.first().expect("No such page revision found");
+    // TODO if revision number set, view that revision
 
     Template::render(
         "page",
-        context! {page: &child, page_revision: latest_revision, nav: &nav_element, is_user: is_user, path: path},
+        context! {page: &child, page_revision: latest_revision, all_revisions: all_revisions, nav: &nav_element, is_user: is_user, path: path},
     )
 }
 
