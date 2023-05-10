@@ -56,6 +56,7 @@ async fn rocket() -> _ {
         .mount("/", routes![views::pages::upload_image])
         .mount("/", routes![views::pages::upload_image_form])
         .mount("/", routes![views::pages::search_pages])
+        .mount("/", routes![views::pages::download_page_markdown])
         .mount("/", routes![views::admins::authenticate_form])
         .mount("/", routes![views::admins::authenticate])
         .mount("/", routes![views::admins::deauth])

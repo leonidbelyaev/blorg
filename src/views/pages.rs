@@ -165,6 +165,49 @@ pub fn create_child_page_form(path: PathBuf, admin: AuthenticatedAdmin) -> Templ
     Template::render("create_child_page_form", context! {path: path})
 }
 
+#[get("/download/pages/<path..>?<revision>")]
+pub async fn download_page_markdown(
+    path: PathBuf,
+    revision: Option<usize>,
+    connection: PersistDatabase,
+) -> String {
+    let page = path2page(&path, &connection).await;
+
+    use self::schema::page_revision::dsl::*;
+    let all_revisions = connection
+        .run(move |c| {
+            page_revision
+                .filter(self::schema::page_revision::dsl::page_id.eq(page.id))
+                .order(unix_time)
+                .load::<PageRevision>(c)
+                .expect("Database error finding page revision")
+        })
+        .await;
+    let to_view = match revision {
+        Some(rev) => all_revisions
+            .iter()
+            .nth(rev)
+            .expect("No such page revision found."),
+        None => all_revisions.last().expect("No such page revision found."),
+    };
+
+    let mut to_return = "# ".to_string();
+    to_return.push_str(&page.title.clone());
+    to_return.push_str("\n");
+    to_return.push_str("-".repeat(80).as_ref());
+    to_return.push_str("\n");
+    to_return.push_str("\n");
+    to_return.push_str(&to_view.markdown_content.clone());
+    to_return.push_str("\n");
+    to_return.push_str("\n");
+    to_return.push_str("-".repeat(80).as_ref());
+    to_return.push_str("\n");
+    to_return.push_str("\n");
+    to_return.push_str(&to_view.sidebar_markdown_content.clone());
+
+    return to_return;
+}
+
 #[get("/pages/<path..>?<revision>")]
 pub async fn get_page(
     path: PathBuf,
@@ -466,6 +509,8 @@ pub async fn delete_page(
                 .expect("Failed to delete page.")
         })
         .await;
+
+    // Cascade delete should take care of children
 
     memory_connection
         .run(move |c| {

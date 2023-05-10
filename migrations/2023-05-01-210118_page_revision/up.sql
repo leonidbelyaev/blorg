@@ -7,5 +7,5 @@ CREATE TABLE page_revision(
   markdown_content TEXT NOT NULL,
   sidebar_html_content TEXT NOT NULL,
   sidebar_markdown_content TEXT NOT NULL,
-  FOREIGN KEY (page_id) REFERENCES page(id)
+  FOREIGN KEY (page_id) REFERENCES page(id) ON DELETE CASCADE
 );
