@@ -189,8 +189,37 @@ img {
     width: 100%;
 }
 
+.articleheader {
+    display: flex;
+    align-items: baseline;
+    margin-bottom: 10px;
+}
+
 .articleheader h1 {
     margin: 0px;
+}
+
+.articleheader .raw {
+    margin-left: auto;
+}
+
+.notice {
+    background-image: url("img/salt.png");
+    background-color: black;
+    color: white;
+    padding: 5px;
+    border: 2px ridge grey;
+    margin: auto;
+    width: 50%;
+}
+
+.notice a {
+    color: white;
+}
+
+.notice a:hover {
+    color: black;
+    background-color: white;
 }
 
 .secret {

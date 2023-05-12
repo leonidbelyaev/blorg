@@ -1,0 +1,9 @@
+{% extends "base" %}
+
+{% block content %}
+<ul>
+{% for url in url_spec %}
+<li><a href="{{ url.0 }}">{{ url.1 }}</a></li>
+{% endfor %}
+</ul>
+{% endblock content %}

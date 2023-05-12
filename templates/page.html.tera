@@ -23,17 +23,19 @@
 </div>
 {% endif %}
 <div class="articleheader">
-{% if not is_latest %}
-<span class="datewarn">This revision out of date. View the latest revision <a href="/pages/{{ path }}">here</a>.</span>
-{% endif %}
+<div>
 <h1>{{ page.title }}</h1>
-<small>
-  <a href="/download/pages/{{ path }}?revision={{ revision_number }}">Raw Markdown</a>
-</small>
 <small>
   {{ page_revision.iso_time }}
 </small>
 </div>
+<small class="raw">
+  <a href="/download/pages/{{ path }}?revision={{ revision_number }}">Raw Markdown</a>
+</small>
+</div>
+{% if not is_latest %}
+<div class="notice">This revision out of date.<br/> View the latest revision <a href="/pages/{{ path }}">here</a>.</div>
+{% endif %}
 {{ page_revision.html_content | safe}}
 {% endblock content %}
 
