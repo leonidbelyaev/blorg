@@ -88,11 +88,6 @@ struct StringContainer {
     string: String,
 }
 
-#[derive(FromForm)]
-pub struct Upload<'f> {
-    filename: String,
-    image: TempFile<'f>,
-}
 
 #[derive(Serialize, Deserialize, FromForm, Clone)]
 pub struct PageInfo {
@@ -627,26 +622,4 @@ async fn path2page(path: &PathBuf, connection: &PersistDatabase) -> Page {
     let child = binding.first().expect("No such page found");
     println!("Child is: {:?}", child);
     child.clone()
-}
-
-#[post("/upload/image", data = "<form>")]
-pub async fn upload_image(mut form: Form<Upload<'_>>) -> std::io::Result<()> {
-    // hand is forced by https://github.com/SergioBenitez/Rocket/issues/2296 for now
-
-    let tmp_dir = TempDir::new("blorg")?;
-    let tmppath = tmp_dir.path().join(form.filename.clone());
-    form.image.move_copy_to(&tmppath).await;
-
-    let mut image = Reader::open(&tmppath)?.decode().unwrap().into_luma8();
-    dither(&mut image, &BiLevel);
-
-    let persist_path = format!("./static/img/runtime/{}", form.filename.clone());
-    image.save(persist_path);
-
-    Ok(())
-}
-
-#[get("/upload/image")]
-pub fn upload_image_form(admin: AuthenticatedAdmin) -> Template {
-    Template::render("upload_image_form", context! {})
 }

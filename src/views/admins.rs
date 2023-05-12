@@ -8,7 +8,7 @@ extern crate diesel;
 extern crate rocket;
 use crate::models::Admin;
 use crate::schema;
-use crate::{models, PersistDatabase};
+use crate::{PersistDatabase};
 use crypto::digest::Digest;
 use crypto::sha3::Sha3;
 use diesel::prelude::*;
@@ -29,6 +29,16 @@ use slab_tree::*;
 use std::collections::HashMap;
 use std::env;
 use std::path::{Path, PathBuf};
+use crate::models::{self, AuthenticatedAdmin};
+use image::ImageFormat;
+use image::RgbImage;
+use image::{open, DynamicImage};
+use image::imageops::colorops::dither;
+use image::imageops::{BiLevel, ColorMap};
+use image::io::Reader;
+use tempdir::TempDir;
+use rocket::fs::TempFile;
+
 
 type Result<T, E = Debug<diesel::result::Error>> = std::result::Result<T, E>;
 
@@ -36,6 +46,12 @@ type Result<T, E = Debug<diesel::result::Error>> = std::result::Result<T, E>;
 pub struct AdminInfo {
     username: String,
     password: String,
+}
+
+#[derive(FromForm)]
+pub struct Upload<'f> {
+    filename: String,
+    image: TempFile<'f>,
 }
 
 #[get("/admins/authenticate")]
@@ -121,4 +137,35 @@ fn hash_password(password: &String) -> String {
     let mut hasher = Sha3::sha3_256();
     hasher.input_str(password);
     hasher.result_str()
+}
+
+
+#[post("/upload/image", data = "<form>")]
+pub async fn upload_image(mut form: Form<Upload<'_>>) -> std::io::Result<()> {
+    // hand is forced by https://github.com/SergioBenitez/Rocket/issues/2296 for now
+
+    let tmp_dir = TempDir::new("blorg")?;
+    let tmppath = tmp_dir.path().join(form.filename.clone());
+    form.image.move_copy_to(&tmppath).await;
+
+    let mut image = Reader::open(&tmppath)?.decode().unwrap().into_luma8();
+    dither(&mut image, &BiLevel);
+
+    let persist_path = format!("./static/img/runtime/{}", form.filename.clone());
+    image.save(persist_path);
+
+    Ok(())
+}
+
+#[get("/upload/image")]
+pub fn upload_image_form(admin: AuthenticatedAdmin) -> Template {
+    Template::render("upload_image_form", context! {})
+}
+
+/// Admin panel, exposing misc. admin-only functionality.
+#[get("/admins/panel")]
+pub fn admin_panel(admin: AuthenticatedAdmin) -> Template {
+    let admin_url_spec = vec![("/upload/image", "Upload Image")];
+
+    Template::render("url_list", context! {url_spec: admin_url_spec})
 }
