@@ -21,20 +21,6 @@ pub struct ManagedState {
     parser_options: Options,
 }
 
-#[derive(Queryable, QueryableByName, Serialize, Deserialize, Debug, Clone)]
-pub struct SearchablePage {
-    #[diesel(sql_type = Nullable<Integer>)]
-    pub id: Option<i32>,
-    #[diesel(sql_type = Text)]
-    pub path: String,
-    #[diesel(sql_type = Text)]
-    pub title: String,
-    #[diesel(sql_type = Text)]
-    pub markdown_content: String,
-    #[diesel(sql_type = Text)]
-    pub sidebar_markdown_content: String,
-}
-
 #[database("persist_database")]
 pub struct PersistDatabase(diesel::SqliteConnection);
 
@@ -83,7 +69,7 @@ async fn init_with_defaults(
     memory_connection: &MemoryDatabase,
     state: &State<ManagedState>,
 ) {
-    use self::models::Page;
+    use self::{models::Page, views::search::SearchResult};
 
     use self::schema::page::dsl::*;
 
@@ -125,7 +111,7 @@ async fn init_with_defaults(
     );
 
     let binding = connection
-        .run(move |c| query.load::<SearchablePage>(c).expect("Database error"))
+        .run(move |c| query.load::<SearchResult>(c).expect("Database error"))
         .await;
 
     for searchable_page in binding {

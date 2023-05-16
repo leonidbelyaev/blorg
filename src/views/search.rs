@@ -28,18 +28,18 @@ use std::{collections::HashMap, path::PathBuf};
 
 type Result<T, E = Debug<diesel::result::Error>> = std::result::Result<T, E>;
 
-#[derive(QueryableByName, Debug, Serialize)]
-struct SearchResult {
+#[derive(Queryable, QueryableByName, Debug, Serialize, Deserialize, Clone)]
+pub struct SearchResult {
     #[diesel(sql_type = Nullable<Integer>)]
-    id: Option<i32>,
+    pub id: Option<i32>,
     #[diesel(sql_type = Text)]
-    path: String,
+    pub path: String,
     #[diesel(sql_type = Text)]
-    title: String,
+    pub title: String,
     #[diesel(sql_type = Text)]
-    markdown_content: String,
+    pub markdown_content: String,
     #[diesel(sql_type = Text)]
-    sidebar_markdown_content: String,
+    pub sidebar_markdown_content: String,
 }
 
 #[get("/search/pages?<query>")]
