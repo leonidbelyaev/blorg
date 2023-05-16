@@ -175,9 +175,10 @@ pub async fn delete_page(
     if spath == "/" {
         panic!()
     }
-    let to_delete = Page::from_path(&path, &connection)
+    Page::from_path(&path, &connection)
         .await
-        .delete(&connection, &memory_connection);
+        .delete(&connection, &memory_connection)
+        .await;
 
     let mut path = path.clone();
     path.pop();

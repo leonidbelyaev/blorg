@@ -1,4 +1,3 @@
-
 use rocket::{form::FromForm, response::Redirect};
 
 extern crate diesel;
@@ -8,13 +7,12 @@ use crate::{
     schema, PersistDatabase,
 };
 use crypto::{digest::Digest, sha3::Sha3};
-use diesel::{prelude::*};
+use diesel::prelude::*;
 
 use image::{
     imageops::{colorops::dither, BiLevel},
     io::Reader,
 };
-
 
 use rocket::{
     form::Form,
@@ -22,15 +20,13 @@ use rocket::{
     get,
     http::{Cookie, CookieJar},
     post,
-    response::{Debug},
-    serde::{Deserialize},
+    response::Debug,
+    serde::Deserialize,
     uri, Either,
 };
 use rocket_dyn_templates::{context, Template};
 
-use std::{
-    path::{PathBuf},
-};
+use std::path::PathBuf;
 use tempdir::TempDir;
 
 type Result<T, E = Debug<diesel::result::Error>> = std::result::Result<T, E>;
@@ -133,7 +129,10 @@ fn hash_password(password: &String) -> String {
 }
 
 #[post("/upload/image", data = "<form>")]
-pub async fn upload_image(mut form: Form<Upload<'_>>) -> std::io::Result<()> {
+pub async fn upload_image(
+    mut form: Form<Upload<'_>>,
+    _admin: AuthenticatedAdmin,
+) -> std::io::Result<()> {
     // hand is forced by https://github.com/SergioBenitez/Rocket/issues/2296 for now
 
     let tmp_dir = TempDir::new("blorg")?;

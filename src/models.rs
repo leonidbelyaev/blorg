@@ -305,7 +305,7 @@ impl Page {
             .run(move |c| {
                 use crate::schema::page::dsl::*;
                 diesel::delete(page)
-                    .filter(id.eq(self.id))
+                    .filter(crate::schema::page::id.eq(self.id))
                     .execute(c)
                     .expect("Failed to delete page.")
             })
