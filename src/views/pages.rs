@@ -53,7 +53,7 @@ pub async fn create_child_page(
 ) -> Redirect {
     use models::Page;
 
-    let parent = path2page(&path, &connection).await;
+    let parent = Page::from_path(&path, &connection).await;
 
     let child_page = child_page.into_inner();
 
@@ -84,7 +84,7 @@ pub async fn download_page_markdown(
     revision: Option<usize>,
     connection: PersistDatabase,
 ) -> String {
-    let page = path2page(&path, &connection).await;
+    let page = Page::from_path(&path, &connection).await;
     let nth_rev = PageRevision::get_nth_revision(&connection, page.id.unwrap(), revision).await;
 
     page2raw(
@@ -105,7 +105,7 @@ pub async fn get_page(
 
     use self::schema::page::dsl::*;
 
-    let child = path2page(&path, &connection).await;
+    let child = Page::from_path(&path, &connection).await;
 
     let tree_source = connection
         .run(move |c| {
@@ -302,7 +302,7 @@ pub async fn edit_page_form(
     path: PathBuf,
     connection: PersistDatabase,
 ) -> Template {
-    let page = path2page(&path, &connection).await;
+    let page = Page::from_path(&path, &connection).await;
     let latest_revision = PageRevision::get_nth_revision(&connection, page.id.unwrap(), None).await;
 
     Template::render(
@@ -322,50 +322,11 @@ pub async fn delete_page(
     if spath == "/" {
         panic!()
     }
-    let to_delete = path2page(&path, &connection)
+    let to_delete = Page::from_path(&path, &connection)
         .await
         .delete(&connection, &memory_connection);
 
     let mut path = path.clone();
     path.pop();
     Redirect::to(uri!(get_page(path, None::<usize>)))
-}
-
-async fn path2page(path: &PathBuf, connection: &PersistDatabase) -> Page {
-    use self::models::Page;
-
-    let query = sql_query(
-        r#"
-             WITH RECURSIVE CTE AS (
-             SELECT id, slug AS path
-             FROM page
-             WHERE parent_id IS NULL
-             UNION ALL
-             SELECT p.id, path || '/' || slug
-             FROM page p
-             JOIN CTE ON p.parent_id = CTE.id
-           )
-           SELECT * FROM page WHERE id = (
-           SELECT id FROM CTE WHERE path = ?
-           );
-"#,
-    );
-    let path = path.to_str().unwrap().to_string();
-    let path_spec = if path != "" {
-        format!("/{}", path)
-    } else {
-        path
-    };
-    println!("path spec is {:?}", path_spec);
-    let binding = connection
-        .run(move |c| {
-            query
-                .bind::<Text, _>(path_spec)
-                .load::<Page>(c)
-                .expect("Database error finding page")
-        })
-        .await;
-    let child = binding.first().expect("No such page found");
-    println!("Child is: {:?}", child);
-    child.clone()
 }

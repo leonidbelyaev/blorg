@@ -304,7 +304,7 @@ impl Page {
             .await;
     }
 
-    async fn from_path(path: &PathBuf, connection: &PersistDatabase) -> Self {
+    pub async fn from_path(path: &PathBuf, connection: &PersistDatabase) -> Self {
         let query = sql_query(
             r#"
              WITH RECURSIVE CTE AS (
