@@ -1,10 +1,7 @@
 use self::models::PageRevision;
 use diesel::sql_types::{BigInt, Integer, Text};
 
-use rocket::{
-    http::{CookieJar},
-    response::Redirect,
-};
+use rocket::{http::CookieJar, response::Redirect};
 
 extern crate diesel;
 extern crate rocket;
@@ -13,13 +10,7 @@ use crate::{
     schema, ManagedState, MemoryDatabase, PersistDatabase,
 };
 
-use diesel::{
-    prelude::*,
-    row::Row,
-    sql_query,
-    sql_types::Nullable,
-};
-
+use diesel::{prelude::*, row::Row, sql_query, sql_types::Nullable};
 
 use models::Page;
 use pandoc::{PandocOption, PandocOutput};
@@ -27,17 +18,13 @@ use pandoc::{PandocOption, PandocOutput};
 use rocket::{
     form::Form,
     get, post,
-    response::{Debug},
+    response::Debug,
     serde::{Deserialize, Serialize},
     uri, FromForm, State,
 };
 use rocket_dyn_templates::{context, Template};
 use slab_tree::*;
-use std::{
-    collections::HashMap,
-    path::{PathBuf},
-};
-
+use std::{collections::HashMap, path::PathBuf};
 
 type Result<T, E = Debug<diesel::result::Error>> = std::result::Result<T, E>;
 
@@ -123,7 +110,6 @@ pub async fn create_child_page(
     connection: PersistDatabase,
     memory_connection: MemoryDatabase,
 ) -> Redirect {
-    
     use models::Page;
 
     let parent = path2page(&path, &connection).await;
@@ -207,7 +193,7 @@ pub async fn get_page(
     jar: &CookieJar<'_>,
     connection: PersistDatabase,
 ) -> Template {
-    use self::models::{PageRevision};
+    use self::models::PageRevision;
 
     use self::schema::page::dsl::*;
 
@@ -442,12 +428,15 @@ pub async fn edit_page(
     Redirect::to(uri!(get_page(path, None::<usize>)))
 }
 
-pub async fn get_latest_revision(_page_id: i32, connection: &PersistDatabase) -> PageRevision {
+pub async fn get_latest_revision(
+    target_page_id: i32,
+    connection: &PersistDatabase,
+) -> PageRevision {
     use self::{models::PageRevision, schema::page_revision::dsl::*};
     let all_revisions = connection
         .run(move |c| {
             page_revision
-                .filter(self::schema::page_revision::dsl::page_id.eq(page_id))
+                .filter(self::schema::page_revision::dsl::page_id.eq(target_page_id))
                 .order(unix_time)
                 .load::<PageRevision>(c)
                 .expect("Database error finding page revision")
@@ -481,8 +470,6 @@ pub async fn delete_page(
     connection: PersistDatabase,
     memory_connection: MemoryDatabase,
 ) -> Redirect {
-    
-
     use self::schema::page::dsl::*;
 
     let spath = format!("/{}", path.to_str().unwrap().to_string());
@@ -523,8 +510,6 @@ pub async fn search_pages(
     memory_connection: MemoryDatabase,
     _connection: PersistDatabase,
 ) -> Template {
-    
-
     let search_results = sql_query(
         r#"SELECT id, path, snippet(search, 2, '<span class="highlight">', '</span>', '...', 64) AS "title", snippet(search, 3, '<span class="highlight">', '</span>', '...', 64) AS "markdown_content", snippet(search, 4, '<span class="highlight">', '</span>', '...', 64) AS "sidebar_markdown_content" FROM search WHERE search MATCH '{title markdown_content sidebar_markdown_content}: ' || ? "#,
     );
@@ -547,8 +532,6 @@ pub async fn search_pages(
 }
 
 async fn id2path(page_id: i64, connection: &PersistDatabase) -> String {
-    
-
     let query = sql_query(
         r#"
              WITH RECURSIVE CTE AS (
@@ -578,7 +561,7 @@ async fn id2path(page_id: i64, connection: &PersistDatabase) -> String {
 }
 
 async fn path2page(path: &PathBuf, connection: &PersistDatabase) -> Page {
-    use self::{models::Page};
+    use self::models::Page;
 
     let query = sql_query(
         r#"
