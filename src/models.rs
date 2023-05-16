@@ -73,6 +73,33 @@ pub struct PageRevision {
     pub sidebar_markdown_content: String,
 }
 
+impl PageRevision {
+    pub async fn get_nth_revision(
+        connection: &PersistDatabase,
+        target_page_id: i32,
+        revision: Option<usize>,
+    ) -> Self {
+        let all_revisions = connection
+            .run(move |c| {
+                use crate::schema::page_revision::dsl::*;
+                page_revision
+                    .filter(crate::schema::page_revision::dsl::page_id.eq(target_page_id))
+                    .order(unix_time)
+                    .load::<PageRevision>(c)
+                    .expect("Database error finding page revision")
+            })
+            .await;
+        let to_view = match revision {
+            Some(rev) => all_revisions
+                .iter()
+                .nth(rev)
+                .expect("No such page revision found."),
+            None => all_revisions.last().expect("No such page revision found."),
+        };
+        to_view.clone()
+    }
+}
+
 #[derive(
     Queryable, QueryableByName, Insertable, AsChangeset, Serialize, Deserialize, Debug, Clone,
 )]

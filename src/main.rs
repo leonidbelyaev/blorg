@@ -15,6 +15,7 @@ use serde::{Deserialize, Serialize};
 
 mod models;
 mod schema;
+mod util;
 mod views;
 
 pub struct ManagedState {

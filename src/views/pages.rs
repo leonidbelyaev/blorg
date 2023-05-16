@@ -1,4 +1,5 @@
 use self::models::PageRevision;
+use crate::util::page2raw;
 use diesel::sql_types::{BigInt, Integer, Text};
 
 use rocket::{http::CookieJar, response::Redirect};
@@ -33,44 +34,12 @@ enum Padding {
     Bar,
 }
 
-#[derive(QueryableByName, Debug, Serialize)]
-struct IntegerContainer {
-    #[diesel(sql_type = Nullable<Integer>)]
-    int: Option<i32>,
-}
-
-#[derive(QueryableByName, Debug, Serialize)]
-struct StringContainer {
-    #[diesel(sql_type = Text)]
-    string: String,
-}
-
 #[derive(Serialize, Deserialize, FromForm, Clone)]
 pub struct PageInfo {
     pub title: String,
     pub slug: String,
     pub markdown_content: String,
     pub sidebar_markdown_content: String,
-}
-
-fn org2html(org: String) -> String {
-    let mut pandoc = pandoc::new();
-    pandoc.set_input(pandoc::InputKind::Pipe(org));
-    pandoc.set_output(pandoc::OutputKind::Pipe);
-    pandoc.set_input_format(pandoc::InputFormat::Org, Vec::new());
-    pandoc.set_output_format(pandoc::OutputFormat::Html5, Vec::new());
-    pandoc.add_option(PandocOption::HighlightStyle(String::from("zenburn")));
-    pandoc.add_option(PandocOption::TableOfContents);
-    let new_html_content = pandoc.execute().expect("Error converting org to html");
-    match new_html_content {
-        PandocOutput::ToFile(_pathbuf) => {
-            panic!()
-        }
-        PandocOutput::ToBuffer(string) => string,
-        PandocOutput::ToBufferRaw(_vec) => {
-            panic!()
-        }
-    }
 }
 
 #[post("/pages/<path..>", data = "<child_page>")]
@@ -90,12 +59,6 @@ pub async fn create_child_page(
 
     let mut child_path = path.clone();
     child_path.push(&child_page.slug);
-
-    // let new_page = Page::new(parent.id, child_page, state.parser_options);
-
-    // let to_insert = new_page.clone();
-
-    let _cloned_path = child_path.clone();
 
     Page::create_child_and_insert(
         parent.id,
@@ -122,40 +85,13 @@ pub async fn download_page_markdown(
     connection: PersistDatabase,
 ) -> String {
     let page = path2page(&path, &connection).await;
+    let nth_rev = PageRevision::get_nth_revision(&connection, page.id.unwrap(), revision).await;
 
-    use self::schema::page_revision::dsl::*;
-    let all_revisions = connection
-        .run(move |c| {
-            page_revision
-                .filter(self::schema::page_revision::dsl::page_id.eq(page.id))
-                .order(unix_time)
-                .load::<PageRevision>(c)
-                .expect("Database error finding page revision")
-        })
-        .await;
-    let to_view = match revision {
-        Some(rev) => all_revisions
-            .iter()
-            .nth(rev)
-            .expect("No such page revision found."),
-        None => all_revisions.last().expect("No such page revision found."),
-    };
-
-    let mut to_return = "# ".to_string();
-    to_return.push_str(&page.title.clone());
-    to_return.push_str("\n");
-    to_return.push_str("-".repeat(80).as_ref());
-    to_return.push_str("\n");
-    to_return.push_str("\n");
-    to_return.push_str(&to_view.markdown_content.clone());
-    to_return.push_str("\n");
-    to_return.push_str("\n");
-    to_return.push_str("-".repeat(80).as_ref());
-    to_return.push_str("\n");
-    to_return.push_str("\n");
-    to_return.push_str(&to_view.sidebar_markdown_content.clone());
-
-    return to_return;
+    page2raw(
+        &page.title.clone(),
+        &nth_rev.markdown_content.clone(),
+        &nth_rev.sidebar_markdown_content.clone(),
+    )
 }
 
 #[get("/pages/<path..>?<revision>")]
