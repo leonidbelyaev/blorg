@@ -72,7 +72,11 @@ pub fn page2raw(
     to_return.push_str("-".repeat(80).as_ref());
     to_return.push_str("\n");
     to_return.push_str("\n");
-    to_return.push_str(sidebar_markdown_content);
+    if sidebar_markdown_content != "" {
+        to_return.push_str(sidebar_markdown_content);
+    } else {
+        to_return.push_str("This page without sidenotes.");
+    }
 
     to_return
 }
