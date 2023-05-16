@@ -28,34 +28,6 @@ use std::{collections::HashMap, path::PathBuf};
 
 type Result<T, E = Debug<diesel::result::Error>> = std::result::Result<T, E>;
 
-#[derive(QueryableByName, Debug, Serialize)]
-struct SearchResult {
-    #[diesel(sql_type = Nullable<Integer>)]
-    id: Option<i32>,
-    #[diesel(sql_type = Text)]
-    path: String,
-    #[diesel(sql_type = Text)]
-    title: String,
-    #[diesel(sql_type = Text)]
-    markdown_content: String,
-    #[diesel(sql_type = Text)]
-    sidebar_markdown_content: String,
-}
-
-#[derive(QueryableByName, Debug, Serialize)]
-struct QualifiedSearchResult {
-    #[diesel(sql_type = BigInt)]
-    id: i64,
-    #[diesel(sql_type = Text)]
-    title: String,
-    #[diesel(sql_type = Text)]
-    markdown_content: String,
-    #[diesel(sql_type = Text)]
-    sidebar_markdown_content: String,
-    #[diesel(sql_type = Text)]
-    strpath: String,
-}
-
 enum Padding {
     Blank,
     Bar,
@@ -502,62 +474,6 @@ pub async fn delete_page(
     let mut path = path.clone();
     path.pop();
     Redirect::to(uri!(get_page(path, None::<usize>)))
-}
-
-#[get("/search/pages?<query>")]
-pub async fn search_pages(
-    query: String,
-    memory_connection: MemoryDatabase,
-    _connection: PersistDatabase,
-) -> Template {
-    let search_results = sql_query(
-        r#"SELECT id, path, snippet(search, 2, '<span class="highlight">', '</span>', '...', 64) AS "title", snippet(search, 3, '<span class="highlight">', '</span>', '...', 64) AS "markdown_content", snippet(search, 4, '<span class="highlight">', '</span>', '...', 64) AS "sidebar_markdown_content" FROM search WHERE search MATCH '{title markdown_content sidebar_markdown_content}: ' || ? "#,
-    );
-
-    let qclone = query.clone();
-
-    let binding = memory_connection
-        .run(move |c| {
-            search_results
-                .bind::<Text, _>(qclone)
-                .load::<SearchResult>(c)
-                .expect("Database error")
-        })
-        .await;
-
-    Template::render(
-        "search_results",
-        context! {search_results: binding, search_term: query},
-    )
-}
-
-async fn id2path(page_id: i64, connection: &PersistDatabase) -> String {
-    let query = sql_query(
-        r#"
-             WITH RECURSIVE CTE AS (
-             SELECT id, slug AS path
-             FROM page
-             WHERE parent_id IS NULL
-             UNION ALL
-             SELECT p.id, path || '/' || slug
-             FROM page p
-             JOIN CTE ON p.parent_id = CTE.id
-           )
-           SELECT path AS "string" FROM CTE WHERE id = ?
-        "#,
-    );
-
-    let binding = connection
-        .run(move |c| {
-            query
-                .bind::<BigInt, _>(page_id)
-                .load::<StringContainer>(c)
-                .expect("Database error")
-        })
-        .await;
-    let strctr = binding.first().expect("Found no page with that id");
-
-    strctr.string.clone()
 }
 
 async fn path2page(path: &PathBuf, connection: &PersistDatabase) -> Page {

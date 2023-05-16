@@ -7,12 +7,11 @@ use diesel::{
     sql_query,
     sql_types::{Integer, Nullable, Text},
 };
-use pulldown_cmark::{Options};
+use pulldown_cmark::Options;
 use rocket::{fairing::AdHoc, launch, routes, State};
 use rocket_dyn_templates::Template;
 use rocket_sync_db_pools::{database, diesel};
 use serde::{Deserialize, Serialize};
-
 
 mod models;
 mod schema;
@@ -54,14 +53,14 @@ async fn rocket() -> _ {
         .mount("/", routes![views::pages::edit_page_form])
         .mount("/", routes![views::pages::edit_page])
         .mount("/", routes![views::pages::delete_page])
+        .mount("/", routes![views::pages::download_page_markdown])
         .mount("/", routes![views::admins::upload_image])
         .mount("/", routes![views::admins::upload_image_form])
         .mount("/", routes![views::admins::admin_panel])
-        .mount("/", routes![views::pages::search_pages])
-        .mount("/", routes![views::pages::download_page_markdown])
         .mount("/", routes![views::admins::authenticate_form])
         .mount("/", routes![views::admins::authenticate])
         .mount("/", routes![views::admins::deauth])
+        .mount("/", routes![views::search::search_pages])
         .mount("/", routes![views::files])
         .manage(ManagedState {
             parser_options: options,
