@@ -1,5 +1,6 @@
 use crate::{
     schema::{admin, page, page_revision},
+    util::md2html,
     views::pages::PageInfo,
     ManagedState, MemoryDatabase, PersistDatabase,
 };
@@ -36,13 +37,6 @@ impl<'r> FromRequest<'r> for AuthenticatedAdmin {
             .map(|id| AuthenticatedAdmin { id })
             .or_forward(())
     }
-}
-
-fn md2html(md: String, options: Options) -> String {
-    let parser = Parser::new_ext(&md, options);
-    let mut html_output = String::new();
-    html::push_html(&mut html_output, parser);
-    html_output
 }
 
 #[derive(QueryableByName, Debug, Serialize)]

@@ -26,6 +26,8 @@ use rocket_dyn_templates::{context, Template};
 use slab_tree::*;
 use std::{collections::HashMap, path::PathBuf};
 
+use pulldown_cmark::{html, Options, Parser};
+
 fn _org2html(org: String) -> String {
     let mut pandoc = pandoc::new();
     pandoc.set_input(pandoc::InputKind::Pipe(org));
@@ -44,6 +46,13 @@ fn _org2html(org: String) -> String {
             panic!()
         }
     }
+}
+
+pub fn md2html(md: String, options: Options) -> String {
+    let parser = Parser::new_ext(&md, options);
+    let mut html_output = String::new();
+    html::push_html(&mut html_output, parser);
+    html_output
 }
 
 pub fn page2raw(
