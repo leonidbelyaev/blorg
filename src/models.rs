@@ -286,6 +286,30 @@ impl Page {
 	}).await;
     }
 
+    pub async fn delete(self, connection: &PersistDatabase, memory_connection: &MemoryDatabase) {
+        connection
+            .run(move |c| {
+                use crate::schema::page::dsl::*;
+                diesel::delete(page)
+                    .filter(id.eq(self.id))
+                    .execute(c)
+                    .expect("Failed to delete page.")
+            })
+            .await;
+
+        // Cascade delete should take care of children TODO and page revisions
+
+        memory_connection
+            .run(move |c| {
+                let query = sql_query("DELETE FROM search WHERE id = ?");
+                query
+                    .bind::<Nullable<Integer>, _>(self.id)
+                    .execute(c)
+                    .expect("Database error");
+            })
+            .await;
+    }
+
     async fn from_path(path: &PathBuf, connection: &PersistDatabase) -> Self {
         let query = sql_query(
             r#"

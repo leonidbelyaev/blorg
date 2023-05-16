@@ -293,67 +293,7 @@ pub async fn edit_page(
     )
     .await;
 
-    // use self::models::Page;
-
-    // use self::schema::page::dsl::*;
-
-    // let child = path2page(&path, &connection).await;
-
-    // let new_page = new_page.into_inner();
-
-    // let mem_page = new_page.clone();
-
-    // let mut redirect_path = path.clone();
-    // redirect_path.pop();
-    // redirect_path.push(&new_page.slug);
-
-    // let mem_path = redirect_path.clone();
-
-    // let put_page = Page::edit(child.clone(), new_page, state.parser_options);
-
-    // connection
-    //     .run(move |c| {
-    //         diesel::update(pages)
-    //             .filter(id.eq(child.id))
-    //             .set(&put_page)
-    //             .execute(c)
-    //             .expect("Failed to update page from path")
-    //     })
-    //     .await;
-
-    // memory_connection
-    //     .run(move |c| {
-    // 	    let query = sql_query("UPDATE search SET path=?, title=?, markdown_content=?, sidebar_markdown_content=? WHERE id = ?");
-    // 	    query
-    //     .bind::<Text, _>(mem_path.display().to_string())
-    //     .bind::<Text, _>(mem_page.title.clone())
-    //     .bind::<Text, _>(mem_page.markdown_content.clone())
-    //     .bind::<Text, _>(mem_page.sidebar_markdown_content.clone())
-    //     .bind::<Nullable<Integer>, _>(child.id)
-    //     .execute(c).expect("Database error");
-    // 	}).await;
-
     Redirect::to(uri!(get_page(path, None::<usize>)))
-}
-
-pub async fn get_latest_revision(
-    target_page_id: i32,
-    connection: &PersistDatabase,
-) -> PageRevision {
-    use self::{models::PageRevision, schema::page_revision::dsl::*};
-    let all_revisions = connection
-        .run(move |c| {
-            page_revision
-                .filter(self::schema::page_revision::dsl::page_id.eq(target_page_id))
-                .order(unix_time)
-                .load::<PageRevision>(c)
-                .expect("Database error finding page revision")
-        })
-        .await;
-    all_revisions
-        .last()
-        .expect("No such page revision found")
-        .clone()
 }
 
 #[get("/edit/pages/<path..>")]
@@ -363,7 +303,7 @@ pub async fn edit_page_form(
     connection: PersistDatabase,
 ) -> Template {
     let page = path2page(&path, &connection).await;
-    let latest_revision = get_latest_revision(page.id.unwrap(), &connection).await;
+    let latest_revision = PageRevision::get_nth_revision(&connection, page.id.unwrap(), None).await;
 
     Template::render(
         "edit_page_form",
@@ -378,34 +318,13 @@ pub async fn delete_page(
     connection: PersistDatabase,
     memory_connection: MemoryDatabase,
 ) -> Redirect {
-    use self::schema::page::dsl::*;
-
     let spath = format!("/{}", path.to_str().unwrap().to_string());
     if spath == "/" {
         panic!()
     }
-    let to_delete = path2page(&path, &connection).await;
-
-    connection
-        .run(move |c| {
-            diesel::delete(page)
-                .filter(id.eq(to_delete.id))
-                .execute(c)
-                .expect("Failed to delete page.")
-        })
-        .await;
-
-    // Cascade delete should take care of children
-
-    memory_connection
-        .run(move |c| {
-            let query = sql_query("DELETE FROM search WHERE id = ?");
-            query
-                .bind::<Nullable<Integer>, _>(to_delete.id)
-                .execute(c)
-                .expect("Database error");
-        })
-        .await;
+    let to_delete = path2page(&path, &connection)
+        .await
+        .delete(&connection, &memory_connection);
 
     let mut path = path.clone();
     path.pop();
