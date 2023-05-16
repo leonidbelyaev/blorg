@@ -7,16 +7,15 @@ use chrono::Utc;
 use diesel::{
     prelude::*,
     sql_query,
-    sql_types::{BigInt, Binary, Bool, Integer, Nullable, Text},
+    sql_types::{Integer, Nullable, Text},
 };
 use rocket::{
-    http::Status,
     outcome::IntoOutcome,
     request::{self, FromRequest, Request},
     State,
 };
 use serde::{Deserialize, Serialize};
-use slugify::slugify;
+
 use std::path::PathBuf;
 
 use pulldown_cmark::{html, Options, Parser};
@@ -245,7 +244,7 @@ impl Page {
             })
             .await;
 
-        let cloned_path = edit_path.clone();
+        let _cloned_path = edit_path.clone();
 
         memory_connection
         .run(move |c| {
@@ -261,7 +260,7 @@ impl Page {
     }
 
     async fn from_path(path: &PathBuf, connection: &PersistDatabase) -> Self {
-        use crate::schema::page::dsl::*;
+        
 
         let query = sql_query(
             r#"

@@ -1,38 +1,35 @@
-use diesel::sql_types::{Integer, Text};
-use rocket::{form::FromForm, fs::NamedFile, local::blocking::Client, response::Redirect};
-use slugify::slugify;
+
+use rocket::{form::FromForm, response::Redirect};
+
 extern crate diesel;
 extern crate rocket;
 use crate::{
-    models::{self, Admin, AuthenticatedAdmin},
+    models::{Admin, AuthenticatedAdmin},
     schema, PersistDatabase,
 };
 use crypto::{digest::Digest, sha3::Sha3};
-use diesel::{prelude::*, sql_query, sql_types::Nullable, sqlite::SqliteConnection};
-use dotenvy::dotenv;
+use diesel::{prelude::*};
+
 use image::{
-    imageops::{colorops::dither, BiLevel, ColorMap},
+    imageops::{colorops::dither, BiLevel},
     io::Reader,
-    open, DynamicImage, ImageFormat, RgbImage,
 };
-use models::Page;
-use pandoc::{PandocOption, PandocOutput};
+
+
 use rocket::{
     form::Form,
     fs::TempFile,
     get,
     http::{Cookie, CookieJar},
-    post, put,
-    response::{status::Created, Debug},
-    serde::{json::Json, Deserialize, Serialize},
-    uri, Either, Response,
+    post,
+    response::{Debug},
+    serde::{Deserialize},
+    uri, Either,
 };
 use rocket_dyn_templates::{context, Template};
-use slab_tree::*;
+
 use std::{
-    collections::HashMap,
-    env,
-    path::{Path, PathBuf},
+    path::{PathBuf},
 };
 use tempdir::TempDir;
 
@@ -153,13 +150,13 @@ pub async fn upload_image(mut form: Form<Upload<'_>>) -> std::io::Result<()> {
 }
 
 #[get("/upload/image")]
-pub fn upload_image_form(admin: AuthenticatedAdmin) -> Template {
+pub fn upload_image_form(_admin: AuthenticatedAdmin) -> Template {
     Template::render("upload_image_form", context! {})
 }
 
 /// Admin panel, exposing misc. admin-only functionality.
 #[get("/admins/panel")]
-pub fn admin_panel(admin: AuthenticatedAdmin) -> Template {
+pub fn admin_panel(_admin: AuthenticatedAdmin) -> Template {
     let admin_url_spec = vec![("/upload/image", "Upload Image")];
 
     Template::render("url_list", context! {url_spec: admin_url_spec})

@@ -1,52 +1,43 @@
 use self::models::PageRevision;
 use diesel::sql_types::{BigInt, Integer, Text};
-use image::{
-    imageops::{BiLevel, ColorMap},
-    io::Reader,
-};
+
 use rocket::{
-    fs::NamedFile,
-    http::{CookieJar, Status},
+    http::{CookieJar},
     response::Redirect,
 };
-use slugify::slugify;
+
 extern crate diesel;
 extern crate rocket;
 use crate::{
     models::{self, AuthenticatedAdmin},
     schema, ManagedState, MemoryDatabase, PersistDatabase,
 };
-use chrono::prelude::*;
+
 use diesel::{
     prelude::*,
     row::Row,
     sql_query,
     sql_types::Nullable,
-    sqlite::{Sqlite, SqliteConnection},
 };
-use dotenvy::dotenv;
-use image::{imageops::colorops::dither, open, DynamicImage, ImageFormat, RgbImage};
+
+
 use models::Page;
 use pandoc::{PandocOption, PandocOutput};
-use pulldown_cmark::{html, Options, Parser};
+
 use rocket::{
-    delete,
     form::Form,
-    fs::TempFile,
-    get, post, put,
-    response::{status::Created, Debug},
-    serde::{json::Json, Deserialize, Serialize},
+    get, post,
+    response::{Debug},
+    serde::{Deserialize, Serialize},
     uri, FromForm, State,
 };
 use rocket_dyn_templates::{context, Template};
 use slab_tree::*;
 use std::{
     collections::HashMap,
-    fs::File,
-    io::{self, Cursor, Write},
-    path::{Path, PathBuf},
+    path::{PathBuf},
 };
-use tempdir::TempDir;
+
 
 type Result<T, E = Debug<diesel::result::Error>> = std::result::Result<T, E>;
 
@@ -113,11 +104,11 @@ fn org2html(org: String) -> String {
     pandoc.add_option(PandocOption::TableOfContents);
     let new_html_content = pandoc.execute().expect("Error converting org to html");
     match new_html_content {
-        PandocOutput::ToFile(pathbuf) => {
+        PandocOutput::ToFile(_pathbuf) => {
             panic!()
         }
         PandocOutput::ToBuffer(string) => string,
-        PandocOutput::ToBufferRaw(vec) => {
+        PandocOutput::ToBufferRaw(_vec) => {
             panic!()
         }
     }
@@ -128,11 +119,11 @@ pub async fn create_child_page(
     state: &State<ManagedState>,
     child_page: Form<PageInfo>,
     path: PathBuf,
-    admin: AuthenticatedAdmin,
+    _admin: AuthenticatedAdmin,
     connection: PersistDatabase,
     memory_connection: MemoryDatabase,
 ) -> Redirect {
-    use self::schema::page::dsl::*;
+    
     use models::Page;
 
     let parent = path2page(&path, &connection).await;
@@ -146,7 +137,7 @@ pub async fn create_child_page(
 
     // let to_insert = new_page.clone();
 
-    let cloned_path = child_path.clone();
+    let _cloned_path = child_path.clone();
 
     Page::create_child_and_insert(
         parent.id,
@@ -162,7 +153,7 @@ pub async fn create_child_page(
 }
 
 #[get("/create/pages/<path..>")]
-pub fn create_child_page_form(path: PathBuf, admin: AuthenticatedAdmin) -> Template {
+pub fn create_child_page_form(path: PathBuf, _admin: AuthenticatedAdmin) -> Template {
     Template::render("create_child_page_form", context! {path: path})
 }
 
@@ -216,7 +207,7 @@ pub async fn get_page(
     jar: &CookieJar<'_>,
     connection: PersistDatabase,
 ) -> Template {
-    use self::models::{Page, PageRevision};
+    use self::models::{PageRevision};
 
     use self::schema::page::dsl::*;
 
@@ -356,7 +347,7 @@ pub async fn get_page(
     }
 
     let is_user = match jar.get_private("user_id") {
-        Some(other_id) => true,
+        Some(_other_id) => true,
         None => false,
     };
 
@@ -395,7 +386,7 @@ pub async fn edit_page(
     state: &State<ManagedState>,
     new_page: Form<PageInfo>,
     path: PathBuf,
-    admin: AuthenticatedAdmin,
+    _admin: AuthenticatedAdmin,
     connection: PersistDatabase,
     memory_connection: MemoryDatabase,
 ) -> Redirect {
@@ -451,7 +442,7 @@ pub async fn edit_page(
     Redirect::to(uri!(get_page(path, None::<usize>)))
 }
 
-pub async fn get_latest_revision(page_id: i32, connection: &PersistDatabase) -> PageRevision {
+pub async fn get_latest_revision(_page_id: i32, connection: &PersistDatabase) -> PageRevision {
     use self::{models::PageRevision, schema::page_revision::dsl::*};
     let all_revisions = connection
         .run(move |c| {
@@ -470,7 +461,7 @@ pub async fn get_latest_revision(page_id: i32, connection: &PersistDatabase) -> 
 
 #[get("/edit/pages/<path..>")]
 pub async fn edit_page_form(
-    admin: AuthenticatedAdmin,
+    _admin: AuthenticatedAdmin,
     path: PathBuf,
     connection: PersistDatabase,
 ) -> Template {
@@ -486,11 +477,11 @@ pub async fn edit_page_form(
 #[get("/delete/pages/<path..>")]
 pub async fn delete_page(
     path: PathBuf,
-    admin: AuthenticatedAdmin,
+    _admin: AuthenticatedAdmin,
     connection: PersistDatabase,
     memory_connection: MemoryDatabase,
 ) -> Redirect {
-    use self::models::Page;
+    
 
     use self::schema::page::dsl::*;
 
@@ -530,9 +521,9 @@ pub async fn delete_page(
 pub async fn search_pages(
     query: String,
     memory_connection: MemoryDatabase,
-    connection: PersistDatabase,
+    _connection: PersistDatabase,
 ) -> Template {
-    use self::{models::Page, schema::page::dsl::*};
+    
 
     let search_results = sql_query(
         r#"SELECT id, path, snippet(search, 2, '<span class="highlight">', '</span>', '...', 64) AS "title", snippet(search, 3, '<span class="highlight">', '</span>', '...', 64) AS "markdown_content", snippet(search, 4, '<span class="highlight">', '</span>', '...', 64) AS "sidebar_markdown_content" FROM search WHERE search MATCH '{title markdown_content sidebar_markdown_content}: ' || ? "#,
@@ -556,7 +547,7 @@ pub async fn search_pages(
 }
 
 async fn id2path(page_id: i64, connection: &PersistDatabase) -> String {
-    use self::{models::Page, schema::page::dsl::*};
+    
 
     let query = sql_query(
         r#"
@@ -587,7 +578,7 @@ async fn id2path(page_id: i64, connection: &PersistDatabase) -> String {
 }
 
 async fn path2page(path: &PathBuf, connection: &PersistDatabase) -> Page {
-    use self::{models::Page, schema::page::dsl::*};
+    use self::{models::Page};
 
     let query = sql_query(
         r#"

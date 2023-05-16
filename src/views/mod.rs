@@ -1,11 +1,10 @@
 pub mod admins;
 pub mod pages;
 
-use diesel::{prelude::*, sqlite::SqliteConnection};
-use dotenvy::dotenv;
-use rocket::{fs::NamedFile, get, http::CookieJar, post, put};
+use diesel::{prelude::*};
+
+use rocket::{fs::NamedFile, get};
 use std::{
-    env,
     path::{Path, PathBuf},
 };
 
