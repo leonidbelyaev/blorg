@@ -21,8 +21,6 @@ use std::collections::HashMap;
 
 use std::path::PathBuf;
 
-use pulldown_cmark::{html, Options, Parser};
-
 pub struct AuthenticatedAdmin {
     id: i32,
 }
@@ -367,8 +365,6 @@ impl Page {
             }
         }
 
-        println!("{:#?}", &tree);
-
         // traverse tree to emit nav element
 
         let mut nav_element = String::from("");
@@ -552,8 +548,6 @@ impl SearchResult {
         connection: &PersistDatabase,
         memory_connection: &MemoryDatabase,
     ) {
-        // TODO this query must be changed for the page revision model
-        // Modify to use multiple select
         let query = sql_query(
             r#"
              WITH RECURSIVE CTE AS (
@@ -567,13 +561,17 @@ impl SearchResult {
            )
            SELECT * FROM CTE
            LEFT JOIN page_revision
-           ON CTE.id = page_revision.page_id;
+-- https://stackoverflow.com/questions/725153/most-recent-record-in-a-left-join
+           ON CTE.id = page_revision.page_id
+           AND page_revision.unix_time = (SELECT MAX(unix_time) FROM page_revision z WHERE z.page_id = page_revision.page_id);
 "#,
         );
 
         let binding = connection
             .run(move |c| query.load::<SearchResult>(c).expect("Database error"))
             .await;
+
+        println!("{:?}", binding);
 
         for searchable_page in binding {
             memory_connection.run(
