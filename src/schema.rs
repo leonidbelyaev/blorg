@@ -51,10 +51,4 @@ diesel::joinable!(comment -> commenter (commenter_id));
 diesel::joinable!(comment -> page (page_id));
 diesel::joinable!(page_revision -> page (page_id));
 
-diesel::allow_tables_to_appear_in_same_query!(
-    admin,
-    comment,
-    commenter,
-    page,
-    page_revision,
-);
+diesel::allow_tables_to_appear_in_same_query!(admin, comment, commenter, page, page_revision,);

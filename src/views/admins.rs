@@ -1,44 +1,40 @@
 use diesel::sql_types::{Integer, Text};
-use rocket::form::FromForm;
-use rocket::fs::NamedFile;
-use rocket::local::blocking::Client;
-use rocket::response::Redirect;
+use rocket::{form::FromForm, fs::NamedFile, local::blocking::Client, response::Redirect};
 use slugify::slugify;
 extern crate diesel;
 extern crate rocket;
-use crate::models::Admin;
-use crate::schema;
-use crate::{PersistDatabase};
-use crypto::digest::Digest;
-use crypto::sha3::Sha3;
-use diesel::prelude::*;
-use diesel::sql_types::Nullable;
-use diesel::sqlite::SqliteConnection;
-use diesel::{prelude::*, sql_query};
+use crate::{
+    models::{self, Admin, AuthenticatedAdmin},
+    schema, PersistDatabase,
+};
+use crypto::{digest::Digest, sha3::Sha3};
+use diesel::{prelude::*, sql_query, sql_types::Nullable, sqlite::SqliteConnection};
 use dotenvy::dotenv;
+use image::{
+    imageops::{colorops::dither, BiLevel, ColorMap},
+    io::Reader,
+    open, DynamicImage, ImageFormat, RgbImage,
+};
 use models::Page;
 use pandoc::{PandocOption, PandocOutput};
-use rocket::form::Form;
-use rocket::http::{Cookie, CookieJar};
-use rocket::response::{status::Created, Debug};
-use rocket::serde::{json::Json, Deserialize, Serialize};
-use rocket::uri;
-use rocket::{get, post, put, Either, Response};
+use rocket::{
+    form::Form,
+    fs::TempFile,
+    get,
+    http::{Cookie, CookieJar},
+    post, put,
+    response::{status::Created, Debug},
+    serde::{json::Json, Deserialize, Serialize},
+    uri, Either, Response,
+};
 use rocket_dyn_templates::{context, Template};
 use slab_tree::*;
-use std::collections::HashMap;
-use std::env;
-use std::path::{Path, PathBuf};
-use crate::models::{self, AuthenticatedAdmin};
-use image::ImageFormat;
-use image::RgbImage;
-use image::{open, DynamicImage};
-use image::imageops::colorops::dither;
-use image::imageops::{BiLevel, ColorMap};
-use image::io::Reader;
+use std::{
+    collections::HashMap,
+    env,
+    path::{Path, PathBuf},
+};
 use tempdir::TempDir;
-use rocket::fs::TempFile;
-
 
 type Result<T, E = Debug<diesel::result::Error>> = std::result::Result<T, E>;
 
@@ -138,7 +134,6 @@ fn hash_password(password: &String) -> String {
     hasher.input_str(password);
     hasher.result_str()
 }
-
 
 #[post("/upload/image", data = "<form>")]
 pub async fn upload_image(mut form: Form<Upload<'_>>) -> std::io::Result<()> {

@@ -1,44 +1,51 @@
 use self::models::PageRevision;
 use diesel::sql_types::{BigInt, Integer, Text};
-use image::imageops::{BiLevel, ColorMap};
-use image::io::Reader;
-use rocket::fs::NamedFile;
-use rocket::http::{CookieJar, Status};
-use rocket::response::Redirect;
+use image::{
+    imageops::{BiLevel, ColorMap},
+    io::Reader,
+};
+use rocket::{
+    fs::NamedFile,
+    http::{CookieJar, Status},
+    response::Redirect,
+};
 use slugify::slugify;
 extern crate diesel;
 extern crate rocket;
-use crate::models::{self, AuthenticatedAdmin};
-use crate::ManagedState;
-use crate::{schema, MemoryDatabase, PersistDatabase};
+use crate::{
+    models::{self, AuthenticatedAdmin},
+    schema, ManagedState, MemoryDatabase, PersistDatabase,
+};
 use chrono::prelude::*;
-use diesel::prelude::*;
-use diesel::row::Row;
-use diesel::sql_types::Nullable;
-use diesel::sqlite::{Sqlite, SqliteConnection};
-use diesel::{prelude::*, sql_query};
+use diesel::{
+    prelude::*,
+    row::Row,
+    sql_query,
+    sql_types::Nullable,
+    sqlite::{Sqlite, SqliteConnection},
+};
 use dotenvy::dotenv;
-use image::imageops::colorops::dither;
-use image::ImageFormat;
-use image::RgbImage;
-use image::{open, DynamicImage};
+use image::{imageops::colorops::dither, open, DynamicImage, ImageFormat, RgbImage};
 use models::Page;
 use pandoc::{PandocOption, PandocOutput};
 use pulldown_cmark::{html, Options, Parser};
-use rocket::form::Form;
-use rocket::fs::TempFile;
-use rocket::response::{status::Created, Debug};
-use rocket::serde::{json::Json, Deserialize, Serialize};
-use rocket::uri;
-use rocket::State;
-use rocket::{delete, get, post, put, FromForm};
+use rocket::{
+    delete,
+    form::Form,
+    fs::TempFile,
+    get, post, put,
+    response::{status::Created, Debug},
+    serde::{json::Json, Deserialize, Serialize},
+    uri, FromForm, State,
+};
 use rocket_dyn_templates::{context, Template};
 use slab_tree::*;
-use std::collections::HashMap;
-use std::fs::File;
-use std::io::Cursor;
-use std::io::{self, Write};
-use std::path::{Path, PathBuf};
+use std::{
+    collections::HashMap,
+    fs::File,
+    io::{self, Cursor, Write},
+    path::{Path, PathBuf},
+};
 use tempdir::TempDir;
 
 type Result<T, E = Debug<diesel::result::Error>> = std::result::Result<T, E>;
@@ -87,7 +94,6 @@ struct StringContainer {
     #[diesel(sql_type = Text)]
     string: String,
 }
-
 
 #[derive(Serialize, Deserialize, FromForm, Clone)]
 pub struct PageInfo {
@@ -210,8 +216,7 @@ pub async fn get_page(
     jar: &CookieJar<'_>,
     connection: PersistDatabase,
 ) -> Template {
-    use self::models::Page;
-    use self::models::PageRevision;
+    use self::models::{Page, PageRevision};
 
     use self::schema::page::dsl::*;
 
@@ -447,19 +452,18 @@ pub async fn edit_page(
 }
 
 pub async fn get_latest_revision(page_id: i32, connection: &PersistDatabase) -> PageRevision {
-    use self::models::PageRevision;
-    use self::schema::page_revision::dsl::*;
+    use self::{models::PageRevision, schema::page_revision::dsl::*};
     let all_revisions = connection
         .run(move |c| {
             page_revision
-                .filter(self::schema::page_revision::dsl::id.eq(page_id))
+                .filter(self::schema::page_revision::dsl::page_id.eq(page_id))
                 .order(unix_time)
                 .load::<PageRevision>(c)
                 .expect("Database error finding page revision")
         })
         .await;
     all_revisions
-        .first()
+        .last()
         .expect("No such page revision found")
         .clone()
 }
@@ -528,8 +532,7 @@ pub async fn search_pages(
     memory_connection: MemoryDatabase,
     connection: PersistDatabase,
 ) -> Template {
-    use self::models::Page;
-    use self::schema::page::dsl::*;
+    use self::{models::Page, schema::page::dsl::*};
 
     let search_results = sql_query(
         r#"SELECT id, path, snippet(search, 2, '<span class="highlight">', '</span>', '...', 64) AS "title", snippet(search, 3, '<span class="highlight">', '</span>', '...', 64) AS "markdown_content", snippet(search, 4, '<span class="highlight">', '</span>', '...', 64) AS "sidebar_markdown_content" FROM search WHERE search MATCH '{title markdown_content sidebar_markdown_content}: ' || ? "#,
@@ -553,8 +556,7 @@ pub async fn search_pages(
 }
 
 async fn id2path(page_id: i64, connection: &PersistDatabase) -> String {
-    use self::models::Page;
-    use self::schema::page::dsl::*;
+    use self::{models::Page, schema::page::dsl::*};
 
     let query = sql_query(
         r#"
@@ -585,8 +587,7 @@ async fn id2path(page_id: i64, connection: &PersistDatabase) -> String {
 }
 
 async fn path2page(path: &PathBuf, connection: &PersistDatabase) -> Page {
-    use self::models::Page;
-    use self::schema::page::dsl::*;
+    use self::{models::Page, schema::page::dsl::*};
 
     let query = sql_query(
         r#"

@@ -1,14 +1,13 @@
 pub mod admins;
 pub mod pages;
 
-use diesel::prelude::*;
-use diesel::sqlite::SqliteConnection;
+use diesel::{prelude::*, sqlite::SqliteConnection};
 use dotenvy::dotenv;
-use rocket::fs::NamedFile;
-use rocket::http::CookieJar;
-use rocket::{get, post, put};
-use std::env;
-use std::path::{Path, PathBuf};
+use rocket::{fs::NamedFile, get, http::CookieJar, post, put};
+use std::{
+    env,
+    path::{Path, PathBuf},
+};
 
 // pub fn establish_connection() -> SqliteConnection {
 //     dotenv().ok();

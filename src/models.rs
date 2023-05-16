@@ -1,15 +1,20 @@
-use crate::schema::admin;
-use crate::schema::page;
-use crate::schema::page_revision;
-use crate::views::pages::PageInfo;
-use crate::{ManagedState, MemoryDatabase, PersistDatabase};
+use crate::{
+    schema::{admin, page, page_revision},
+    views::pages::PageInfo,
+    ManagedState, MemoryDatabase, PersistDatabase,
+};
 use chrono::Utc;
-use diesel::sql_types::{BigInt, Binary, Bool, Integer, Nullable, Text};
-use diesel::{prelude::*, sql_query};
-use rocket::http::Status;
-use rocket::outcome::IntoOutcome;
-use rocket::request::{self, FromRequest, Request};
-use rocket::State;
+use diesel::{
+    prelude::*,
+    sql_query,
+    sql_types::{BigInt, Binary, Bool, Integer, Nullable, Text},
+};
+use rocket::{
+    http::Status,
+    outcome::IntoOutcome,
+    request::{self, FromRequest, Request},
+    State,
+};
 use serde::{Deserialize, Serialize};
 use slugify::slugify;
 use std::path::PathBuf;
