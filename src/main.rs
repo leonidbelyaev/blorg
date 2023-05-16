@@ -69,19 +69,11 @@ async fn init_with_defaults(
     memory_connection: &MemoryDatabase,
     state: &State<ManagedState>,
 ) {
-    use self::{models::Page, views::search::SearchResult};
+    use self::models::{Page, SearchResult};
 
     use self::schema::page::dsl::*;
 
-    memory_connection.run(move |c| {
-         let query = sql_query(
-                r#"
-                CREATE VIRTUAL TABLE IF NOT EXISTS search USING FTS5(id, path, title, markdown_content, sidebar_markdown_content)
-                "#
-        ); // HACK we do this here because diesel does not support such sqlite virtual tables, which by definition have no explicit primary key.
-        query.execute(c).expect("Database error");
-        }
-        ).await;
+    SearchResult::init_memory_table(memory_connection).await;
 
     let page_count: i64 = connection
         .run(move |c| page.count().get_result(c).unwrap())
@@ -91,44 +83,5 @@ async fn init_with_defaults(
         Page::populate_default_root(connection, memory_connection, state).await;
     }
 
-    // TODO this query must be changed for the page revision model
-    // Modify to use multiple select
-    let query = sql_query(
-        r#"
-             WITH RECURSIVE CTE AS (
-             SELECT id, slug AS path, title--, markdown_content, sidebar_markdown_content
-             FROM page
-             WHERE parent_id IS NULL
-             UNION ALL
-             SELECT p.id, path || '/' || slug, p.title--, p.markdown_content, p.sidebar_markdown_content
-             FROM page p
-             JOIN CTE ON p.parent_id = CTE.id
-           )
-           SELECT * FROM CTE
-           LEFT JOIN page_revision
-           ON CTE.id = page_revision.page_id;
-"#,
-    );
-
-    let binding = connection
-        .run(move |c| query.load::<SearchResult>(c).expect("Database error"))
-        .await;
-
-    for searchable_page in binding {
-        memory_connection.run(
-                        move |c| {
-                                let query = sql_query(
-                                        r#"
-                                        INSERT INTO search (id, path, title, markdown_content, sidebar_markdown_content) VALUES (?, ?, ?, ?, ?)
-                                        "#
-                                );
-                                let binding = query.bind::<Integer, _>(searchable_page.id.unwrap())
-                                    .bind::<Text, _>(searchable_page.path)
-                                        .bind::<Text, _>(searchable_page.title)
-                                        .bind::<Text, _>(searchable_page.markdown_content)
-                                        .bind::<Text, _>(searchable_page.sidebar_markdown_content);
-                                binding.execute(c).expect("Database error");
-                        }
-                ).await;
-    }
+    SearchResult::populate_with_revisions(connection, memory_connection).await;
 }

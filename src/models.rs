@@ -260,8 +260,6 @@ impl Page {
     }
 
     async fn from_path(path: &PathBuf, connection: &PersistDatabase) -> Self {
-        
-
         let query = sql_query(
             r#"
              WITH RECURSIVE CTE AS (
@@ -311,4 +309,93 @@ pub struct Admin {
     pub username: String,
     #[diesel(sql_type = Text)]
     pub password_hash: String,
+}
+
+#[derive(Queryable, QueryableByName, Debug, Serialize, Deserialize, Clone)]
+pub struct SearchResult {
+    #[diesel(sql_type = Nullable<Integer>)]
+    pub id: Option<i32>,
+    #[diesel(sql_type = Text)]
+    pub path: String,
+    #[diesel(sql_type = Text)]
+    pub title: String,
+    #[diesel(sql_type = Text)]
+    pub markdown_content: String,
+    #[diesel(sql_type = Text)]
+    pub sidebar_markdown_content: String,
+}
+
+impl SearchResult {
+    pub async fn init_memory_table(memory_connection: &MemoryDatabase) {
+        memory_connection.run(move |c| {
+	    let query = sql_query(
+		    r#"
+		    CREATE VIRTUAL TABLE IF NOT EXISTS search USING FTS5(id, path, title, markdown_content, sidebar_markdown_content)
+		    "#
+	    ); // HACK we do this here because diesel does not support such sqlite virtual tables, which by definition have no explicit primary key.
+	    query.execute(c).expect("Database error");
+	    }
+	    ).await;
+    }
+
+    pub async fn populate_with_revisions(
+        connection: &PersistDatabase,
+        memory_connection: &MemoryDatabase,
+    ) {
+        // TODO this query must be changed for the page revision model
+        // Modify to use multiple select
+        let query = sql_query(
+            r#"
+             WITH RECURSIVE CTE AS (
+             SELECT id, slug AS path, title--, markdown_content, sidebar_markdown_content
+             FROM page
+             WHERE parent_id IS NULL
+             UNION ALL
+             SELECT p.id, path || '/' || slug, p.title--, p.markdown_content, p.sidebar_markdown_content
+             FROM page p
+             JOIN CTE ON p.parent_id = CTE.id
+           )
+           SELECT * FROM CTE
+           LEFT JOIN page_revision
+           ON CTE.id = page_revision.page_id;
+"#,
+        );
+
+        let binding = connection
+            .run(move |c| query.load::<SearchResult>(c).expect("Database error"))
+            .await;
+
+        for searchable_page in binding {
+            memory_connection.run(
+                        move |c| {
+                                let query = sql_query(
+                                        r#"
+                                        INSERT INTO search (id, path, title, markdown_content, sidebar_markdown_content) VALUES (?, ?, ?, ?, ?)
+                                        "#
+                                );
+                                let binding = query.bind::<Integer, _>(searchable_page.id.unwrap())
+                                    .bind::<Text, _>(searchable_page.path)
+                                        .bind::<Text, _>(searchable_page.title)
+                                        .bind::<Text, _>(searchable_page.markdown_content)
+                                        .bind::<Text, _>(searchable_page.sidebar_markdown_content);
+                                binding.execute(c).expect("Database error");
+                        }
+                ).await;
+        }
+    }
+
+    pub async fn run_search(memory_connection: &MemoryDatabase, query: String) -> Vec<Self> {
+        let search_results = sql_query(
+            r#"SELECT id, path, snippet(search, 2, '<span class="highlight">', '</span>', '...', 64) AS "title", snippet(search, 3, '<span class="highlight">', '</span>', '...', 64) AS "markdown_content", snippet(search, 4, '<span class="highlight">', '</span>', '...', 64) AS "sidebar_markdown_content" FROM search WHERE search MATCH '{title markdown_content sidebar_markdown_content}: ' || ? "#,
+        );
+
+        memory_connection
+            .run(move |c| {
+                search_results
+                    .bind::<Text, _>(query)
+                    .load::<SearchResult>(c)
+                    .expect("Database error")
+            })
+            .await
+    }
 }
