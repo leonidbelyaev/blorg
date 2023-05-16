@@ -94,6 +94,26 @@ impl PageRevision {
         };
         to_view.clone()
     }
+
+    pub async fn is_latest(
+        connection: &PersistDatabase,
+        revision: Option<usize>,
+        target_page_id: i32,
+    ) -> bool {
+        let target_revision_count: i64 = connection
+            .run(move |c| {
+                use crate::schema::page_revision::dsl::*;
+                page_revision
+                    .filter(crate::schema::page_revision::dsl::page_id.eq(target_page_id))
+                    .order(unix_time)
+                    .count()
+                    .get_result(c)
+                    .expect("Error finding count of revisions")
+            })
+            .await;
+        (revision.is_some() && revision.unwrap() == (target_revision_count - 1) as usize)
+            || revision.is_none()
+    }
 }
 
 #[derive(

@@ -98,9 +98,7 @@ pub async fn get_page(
 ) -> Template {
     use self::models::PageRevision;
 
-    use self::schema::page::dsl::*;
-
-    let child = Page::from_path(&path, &connection).await;
+    let page = Page::from_path(&path, &connection).await;
 
     let nav_element = Page::build_nav_element(&connection, &path).await;
 
@@ -109,33 +107,24 @@ pub async fn get_page(
         None => false,
     };
 
-    println!("{}", nav_element);
-
-    use self::schema::page_revision::dsl::*;
     let all_revisions = connection
         .run(move |c| {
+            use crate::schema::page_revision::dsl::*;
             page_revision
-                .filter(self::schema::page_revision::dsl::page_id.eq(child.id))
+                .filter(crate::schema::page_revision::dsl::page_id.eq(page.id))
                 .order(unix_time)
                 .load::<PageRevision>(c)
                 .expect("Database error finding page revision")
         })
         .await;
-    let mut is_latest = true;
-    if revision.is_some() && revision.unwrap() != (all_revisions.len() - 1) {
-        is_latest = false;
-    }
-    let to_view = match revision {
-        Some(rev) => all_revisions
-            .iter()
-            .nth(rev)
-            .expect("No such page revision found."),
-        None => all_revisions.last().expect("No such page revision found."),
-    };
+
+    let is_latest = PageRevision::is_latest(&connection, revision, page.id.unwrap()).await;
+
+    let nth_rev = PageRevision::get_nth_revision(&connection, page.id.unwrap(), revision).await;
 
     Template::render(
         "page",
-        context! {page: &child, page_revision: to_view.clone(), all_revisions: all_revisions, nav: &nav_element, is_user: is_user, path: path, is_latest: is_latest, revision_number: revision},
+        context! {page: &page, page_revision: nth_rev, all_revisions: all_revisions, nav: &nav_element, is_user: is_user, path: path, is_latest: is_latest, revision_number: revision},
     )
 }
 
