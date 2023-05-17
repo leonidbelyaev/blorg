@@ -2,4 +2,4 @@
 url = "./db/db.sqlite"
 
 [global.databases.memory_database]
-url = ":memory:"
+url = "file::memory:?cache=shared"
