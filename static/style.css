@@ -187,6 +187,11 @@ main {
 
 img {
     width: 100%;
+    border: 4px ridge black;
+}
+
+figcaption {
+    text-align: center;
 }
 
 .articleheader {
