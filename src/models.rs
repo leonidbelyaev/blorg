@@ -555,7 +555,7 @@ impl SearchResult {
              FROM page
              WHERE parent_id IS NULL
              UNION ALL
-             SELECT p.id, path || '/' || slug, p.title--, p.markdown_content, p.sidebar_markdown_content
+             SELECT p.id, path || '/' || p.slug, p.title--, p.markdown_content, p.sidebar_markdown_content
              FROM page p
              JOIN CTE ON p.parent_id = CTE.id
            )
