@@ -53,6 +53,7 @@ async fn rocket() -> _ {
         .mount("/", routes![views::admins::deauth])
         .mount("/", routes![views::search::search_pages])
         .mount("/", routes![views::files])
+        .mount("/", routes![views::page_redirect])
         .manage(ManagedState {
             parser_options: options,
         })
