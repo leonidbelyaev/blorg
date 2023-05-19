@@ -5,4 +5,4 @@
 /static/img/runtime
 todo.org
 *.md
-*.sh
+upload.sh
