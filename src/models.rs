@@ -488,7 +488,6 @@ impl Page {
         } else {
             path
         };
-        println!("path spec is {:?}", path_spec);
         let binding = connection
             .run(move |c| {
                 query
@@ -498,7 +497,6 @@ impl Page {
             })
             .await;
         let child = binding.first().expect("No such page found");
-        println!("Child is: {:?}", child);
         child.clone()
     }
 }
@@ -570,8 +568,6 @@ impl SearchResult {
         let binding = connection
             .run(move |c| query.load::<SearchResult>(c).expect("Database error"))
             .await;
-
-        println!("{:?}", binding);
 
         for searchable_page in binding {
             memory_connection.run(
