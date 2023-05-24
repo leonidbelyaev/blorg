@@ -42,6 +42,7 @@
         </div>
     <footer>
       Leonid Belyaev 2023
+      <img src="/img/sigil.png" class="sigil">
     </footer>
     </main>
     <a href="/admins/authenticate">

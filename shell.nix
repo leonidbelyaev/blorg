@@ -10,5 +10,6 @@ in
       nixpkgs.latest.rustChannels.nightly.rust
       nixpkgs.openssl
       nixpkgs.sqlite
+      nixpkgs.pkg-config
     ];
   }
