@@ -6,7 +6,7 @@
 </nav>
 {% endblock nav %}
 
-{% block title %}{{ page.title }}{% endblock title %}
+{% block title %}{{ page.title }} @ leonid.belyaev.systems{% endblock title %}
 
 {% block content %}
 {% if is_user %}
