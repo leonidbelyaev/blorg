@@ -58,6 +58,15 @@ a:hover {
     color: #000;
 }
 
+blockquote p {
+    border-left: 1px solid grey;
+    padding-left: 5px;
+}
+
+blockquote {
+    margin-left: 10px;
+}
+
 header {
     align-items: center;
     display: flex;
