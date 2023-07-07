@@ -59,7 +59,7 @@
     <ul>
 {% for revision in all_revisions %}
 {% if is_user %}
-  <li><a href="/pages/{{ path }}?revision={{loop.index - 1}}"><time>{{ revision.iso_time }}</time></a><button type="button">Delete</button></li>
+  <li><a href="/pages/{{ path }}?revision={{loop.index - 1}}"><time>{{ revision.iso_time }}</time></a><button onclick ="window.location.href='/delete/pages/{{ path }}?revision={{loop.index - 1}}'"type="button">Delete</button></li>
 {% else %}
   <li><a href="/pages/{{ path }}?revision={{loop.index - 1}}"><time>{{ revision.iso_time }}</time></a></li>
 {% endif %}

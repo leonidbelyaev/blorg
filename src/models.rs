@@ -93,6 +93,11 @@ impl PageRevision {
         to_view.clone()
     }
 
+    pub async fn delete_nth_revision(connection: &PersistDatabase, target_page_id: i32, revision: Option<usize>) {
+	let nth = Self::get_nth_revision(connection, target_page_id, revision).await;
+	nth.delete(connection).await;
+    }
+
     pub async fn is_latest(
         connection: &PersistDatabase,
         revision: Option<usize>,
@@ -111,6 +116,19 @@ impl PageRevision {
             .await;
         (revision.is_some() && revision.unwrap() == (target_revision_count - 1) as usize)
             || revision.is_none()
+    }
+
+    pub async fn delete(self, connection: &PersistDatabase) {
+	connection
+	    .run(move |c| {
+                use crate::schema::page_revision::dsl::*;
+                diesel::delete(page_revision)
+                    .filter(crate::schema::page_revision::id.eq(self.id))
+                    .execute(c)
+                    .expect("Failed to delete page_revision.")
+	    })
+	    .await;
+	// TODO update the search table
     }
 }
 

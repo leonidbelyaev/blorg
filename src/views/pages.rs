@@ -164,23 +164,28 @@ pub async fn edit_page_form(
     )
 }
 
-#[get("/delete/pages/<path..>")]
+#[get("/delete/pages/<path..>?<revision>")]
 pub async fn delete_page(
     path: PathBuf,
     _admin: AuthenticatedAdmin,
     connection: PersistDatabase,
     memory_connection: MemoryDatabase,
+    revision: Option<usize>,
 ) -> Redirect {
     let spath = format!("/{}", path.to_str().unwrap().to_string());
-    if spath == "/" {
+    if spath == "/" && revision.is_none() {
         panic!()
     }
-    Page::from_path(&path, &connection)
-        .await
-        .delete(&connection, &memory_connection)
-        .await;
-
     let mut path = path.clone();
-    path.pop();
+    let page = Page::from_path(&path, &connection)
+        .await;
+    // delete only the revision
+    if revision.is_some() {
+	let nth_rev = PageRevision::get_nth_revision(&connection, page.id.unwrap(), revision).await.delete(&connection).await;
+    } else {
+	path.pop();
+	page.delete(&connection, &memory_connection).await;
+    }
+
     Redirect::to(uri!(get_page(path, None::<usize>)))
 }
